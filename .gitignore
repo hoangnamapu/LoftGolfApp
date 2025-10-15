@@ -1,0 +1,22 @@
+xcuserdata/
+*.xcuserstate
+
+# Build products
+build/
+Build/
+DerivedData/
+*.ipa
+*.dSYM*
+*.dSYM.zip
+
+# SwiftPM
+.swiftpm/
+.build/
+
+# Logs & OS cruft
+*.log
+.DS_Store
+
+# macOS metadata
+*.swp
+*.lock

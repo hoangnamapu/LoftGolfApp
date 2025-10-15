@@ -1,0 +1,38 @@
+{
+  "" : {
+    "diagnostics" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfApp-master.dia",
+    "emit-module-dependencies" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfApp-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfApp-master-emit-module.dia",
+    "swift-dependencies" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfApp-master.swiftdeps"
+  },
+  "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/LoftGolfApp/ContentView.swift" : {
+    "const-values" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/ContentView.dia",
+    "index-unit-output-path" : "/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
+  },
+  "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/LoftGolfApp/LoftGolfAppApp.swift" : {
+    "const-values" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfAppApp.swiftconstvalues",
+    "dependencies" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfAppApp.d",
+    "diagnostics" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfAppApp.dia",
+    "index-unit-output-path" : "/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfAppApp.o",
+    "llvm-bc" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfAppApp.bc",
+    "object" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfAppApp.o",
+    "swift-dependencies" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfAppApp.swiftdeps",
+    "swiftmodule" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/LoftGolfAppApp~partial.swiftmodule"
+  },
+  "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/panda/Desktop/Desktop/School Work/Capstone/LoftGolfApp/build/Build/Intermediates.noindex/LoftGolfApp.build/Debug-iphonesimulator/LoftGolfApp.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}
