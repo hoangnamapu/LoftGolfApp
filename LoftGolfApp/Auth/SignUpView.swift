@@ -4,7 +4,8 @@ import FirebaseFirestore
 
 struct SignUpView: View {
     @State private var selectedTab: Tab = .signUp
-
+    @State private var isLoggedIn = false
+    
     // --- Sign Up fields
     @State private var fullName = ""
     @State private var email = ""
@@ -209,6 +210,10 @@ struct SignUpView: View {
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $isLoggedIn) {
+                MainTabView()
+                    .navigationBarBackButtonHidden(true)
+            }
         }
     }
 
@@ -270,6 +275,7 @@ struct SignUpView: View {
         do {
             _ = try await Auth.auth().signIn(withEmail: loginEmail.lowercased(), password: loginPassword)
             isBusy = false
+            isLoggedIn = true
             // TODO: navigate to your home screen from outside this view
         } catch {
             isBusy = false
