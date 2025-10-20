@@ -1,17 +1,17 @@
 import SwiftUI
-import FirebaseAuth
-
 
 struct LoginView: View {
     // Inputs
     @State private var email = ""
     @State private var password = ""
     @State private var showPassword = false
-    
 
     // State
     @State private var isBusy = false
     @State private var errorText: String?
+
+    // Auth VM
+    @StateObject private var auth = AuthViewModel()
 
     // Optional: call this after successful login to move to your app’s home screen
     var onLogin: (() -> Void)?
@@ -40,21 +40,23 @@ struct LoginView: View {
                         // Form
                         VStack(spacing: 12) {
                             customField(icon: "envelope",
-                                        placeholder: "Enter your email",
+                                        placeholder: "Email or username",
                                         text: $email,
                                         keyboardType: .emailAddress)
 
                             secureField(icon: "lock",
-                                        placeholder: "Enter your password",
+                                        placeholder: "Password",
                                         text: $password,
                                         show: $showPassword)
                         }
                         .padding(.horizontal)
 
-                        // Forgot password
+                        // Forgot password (USchedule handles reset on web)
                         HStack {
                             Spacer()
-                            Button(action: { Task { await sendResetEmail() } }) {
+                            Button {
+                                errorText = "Password reset is handled on the USchedule website for this account."
+                            } label: {
                                 Text("Forgot password?")
                                     .font(.footnote.weight(.medium))
                                     .foregroundStyle(.white.opacity(0.95))
@@ -76,6 +78,21 @@ struct LoginView: View {
                             .background(Color.black.opacity(0.9))
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .disabled(isBusy)
+                        .padding(.horizontal)
+
+                        // Optional: Staff/No-password flow via Impersonate
+                        Button {
+                            Task { await impersonate() }
+                        } label: {
+                            Text("Impersonate (staff)")
+                                .font(.footnote.weight(.semibold))
+                                .padding(.vertical, 10)
+                                .frame(maxWidth: .infinity)
+                                .background(Color.white.opacity(0.2))
+                                .foregroundStyle(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
                         .disabled(isBusy)
                         .padding(.horizontal)
@@ -105,10 +122,8 @@ struct LoginView: View {
                         .padding(.horizontal)
 
                         Spacer(minLength: 24)
-                        
-                        
                     }
-                    .frame(maxWidth: 560)                 // looks good on iPhone & iPad
+                    .frame(maxWidth: 560)
                     .padding(.bottom, 8)
                     .padding(.vertical, 24)
                     .background(Color.black.opacity(0.5))
@@ -120,83 +135,68 @@ struct LoginView: View {
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: auth.token) { _, tok in
+                // If token exists, consider the user logged in
+                if tok != nil { onLogin?() }
+            }
         }
     }
 
     // MARK: - Actions
 
+    /// Standard username/email + password login (USchedule ValidateUser)
     private func signIn() async {
-        let e = normalizedEmail
+        let e = normalizedEmailOrUsername
         guard !e.isEmpty, !password.isEmpty else {
-            errorText = "Please enter email and password."
+            errorText = "Please enter email/username and password."
             return
         }
-
-        isBusy = true
-        errorText = nil
-
+        isBusy = true; errorText = nil
         do {
-            _ = try await Auth.auth().signIn(withEmail: e, password: password)
+            try await auth.login(username: e, password: password)
             isBusy = false
             onLogin?()
-        } catch let ns as NSError {
+        } catch let err as USError {
             isBusy = false
-            // Handle common cases; show generic message when enumeration-safe
-            switch ns.code {
-            case AuthErrorCode.wrongPassword.rawValue:
-                errorText = "Email or password is incorrect."
-            case AuthErrorCode.userNotFound.rawValue:
-                // Some projects won’t return this when enumeration protection is on.
-                errorText = "Email or password is incorrect."
-            case AuthErrorCode.invalidEmail.rawValue:
-                errorText = "Invalid email address."
-            case AuthErrorCode.operationNotAllowed.rawValue:
-                errorText = "Email/Password sign-in is disabled in Firebase Console."
-            case AuthErrorCode.tooManyRequests.rawValue:
-                errorText = "Too many attempts. Please try again later."
-            case AuthErrorCode.networkError.rawValue:
-                errorText = "Network error. Check your internet connection."
+            switch err {
+            case .http(let code, _):
+                errorText = (code == 401) ? "Email/username or password is incorrect." : err.localizedDescription
             default:
-                // Fallback: safe, non-enumerating message
-                errorText = "Sign-in failed. Please check your email and password."
-                print("🔥 Login error:", ns.domain, ns.code, ns.userInfo)
+                errorText = err.localizedDescription
             }
+        } catch {
+            isBusy = false
+            errorText = error.localizedDescription
         }
     }
 
-
-
-    private func sendResetEmail() async {
-        let e = normalizedEmail
+    /// Optional: Impersonate by username (no password). Great for front-desk flow.
+    private func impersonate() async {
+        let e = normalizedEmailOrUsername
         guard !e.isEmpty else {
-            errorText = "Enter your email above, then tap “Forgot password?”"
+            errorText = "Enter the customer’s username/email to impersonate."
             return
         }
-
-        isBusy = true
-        errorText = nil
+        isBusy = true; errorText = nil
         do {
-            try await Auth.auth().sendPasswordReset(withEmail: e)
+            try await auth.impersonate(username: e)
             isBusy = false
-            // Generic confirmation to avoid revealing account existence
-            errorText = "If an account exists for \(e), you’ll receive a reset email shortly."
-        } catch let ns as NSError {
+            onLogin?()
+        } catch let err as USError {
             isBusy = false
-            switch ns.code {
-            case AuthErrorCode.invalidEmail.rawValue:
-                errorText = "Invalid email address."
-            case AuthErrorCode.networkError.rawValue:
-                errorText = "Network error. Try again."
+            switch err {
+            case .http(let code, _):
+                errorText = (code == 404 || code == 400) ? "No user found for that identifier." : err.localizedDescription
             default:
-                // Keep messaging generic for safety
-                errorText = "If an account exists for \(e), you’ll receive a reset email shortly."
-                print("🔁 Reset error:", ns.domain, ns.code, ns.userInfo)
+                errorText = err.localizedDescription
             }
+        } catch {
+            isBusy = false
+            errorText = error.localizedDescription
         }
     }
 
-
-    // MARK: - UI helpers (kept minimal; matches your SignUp look)
+    // MARK: - UI helpers
 
     private func customField(icon: String,
                              placeholder: String,
@@ -256,14 +256,10 @@ struct LoginView: View {
         .foregroundStyle(.black)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
-    
-    private var normalizedEmail: String {
-        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+    private var normalizedEmailOrUsername: String {
+        email.trimmingCharacters(in: .whitespacesAndNewlines)
     }
-
-
 }
 
-#Preview {
-    LoginView()
-}
+#Preview { LoginView() }
