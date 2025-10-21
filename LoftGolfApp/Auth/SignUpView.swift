@@ -1,10 +1,11 @@
 import SwiftUI
 
 struct SignUpView: View {
-    enum Tab { case signUp, login }
+    @StateObject private var auth = AuthViewModel()
 
-    @State private var selected: Tab = .signUp
-    @State private var showWaiver = false
+    enum Route: Hashable { case home }
+
+    @State private var path: [Route] = []
 
     // --- Sign Up fields
     @State private var firstName = ""
@@ -19,20 +20,18 @@ struct SignUpView: View {
     @State private var showPassword = false
     @State private var showConfirmPassword = false
 
-    // --- Login fields
-    @State private var loginEmail = ""
-    @State private var loginPassword = ""
-    @State private var showLoginPassword = false
-
     // UI state
     @State private var isBusy = false
     @State private var errorText: String?
-    @State private var goHome = false
 
-    @StateObject private var auth = AuthViewModel()
+    // Waiver sheet
+    @State private var showWaiverSheet = false
+
+    // For returning to Login (when SignUpView is presented modally)
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack(alignment: .top) {
                 Color(red: 0.10, green: 0.11, blue: 0.14).ignoresSafeArea()
                 LinearGradient(colors: [Color.white.opacity(0.06), .clear],
@@ -42,40 +41,39 @@ struct SignUpView: View {
 
                 ScrollView {
                     VStack(spacing: 16) {
+                        // Header
                         VStack(spacing: 6) {
-                            Text(selected == .signUp ? "Create Your Account" : "Welcome Back")
+                            Text("Create Your Account")
                                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                                 .foregroundStyle(.white)
-                            Text(selected == .signUp ? "Fill in your details to get started."
-                                 : "Log in to continue.")
+                            Text("Fill in your details to get started.")
                                 .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.85))
                         }
                         .padding(.top, 16)
 
-                        Picker("", selection: $selected) {
-                            Text("Login").tag(Tab.login)
-                            Text("Sign Up").tag(Tab.signUp)
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-
+                        // Card
                         VStack(spacing: 14) {
-                            if selected == .signUp { signUpForm } else { loginForm }
+                            signUpForm
 
                             if let errorText {
                                 ErrorBanner(text: errorText)
                             }
 
-                            if selected == .signUp {
-                                PrimaryButton(title: isBusy ? nil : "Create Account", isLoading: isBusy) {
-                                    Task { await handleSignUp() }
-                                }
-                            } else {
-                                PrimaryButton(title: isBusy ? nil : "Log In", isLoading: isBusy) {
-                                    Task { await handleSignIn() }
-                                }
+                            PrimaryButton(title: isBusy ? nil : "Create Account", isLoading: isBusy) {
+                                Task { await handleSignUp() }
                             }
+
+                            // Return to Login
+                            Button {
+                                dismiss()  // closes SignUpView if shown as a sheet/fullScreenCover
+                            } label: {
+                                Text("Already have an account? Log in")
+                                    .font(.footnote.weight(.medium))
+                                    .underline()
+                                    .foregroundStyle(.white.opacity(0.9))
+                            }
+                            .padding(.top, 4)
                         }
                         .padding(16)
                         .background(RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.06)))
@@ -87,12 +85,23 @@ struct SignUpView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(isPresented: $showWaiver) {
+
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .home:
+                    MainTabView()
+                        .navigationBarBackButtonHidden(true)
+                }
+            }
+
+            .sheet(isPresented: $showWaiverSheet, onDismiss: {
+                // After waiver, go home
+                path = [.home]
+            }) {
                 WaiverView()
             }
-            .navigationDestination(isPresented: $goHome) {
-                MainTabView().navigationBarBackButtonHidden(true)
-            }
+
+            // Clear field-specific errors when user edits
             .onChange(of: username) { _ in
                 if errorText?.localizedCaseInsensitiveContains("username") == true { errorText = nil }
             }
@@ -102,13 +111,10 @@ struct SignUpView: View {
             .onChange(of: phone) { _ in
                 if errorText?.localizedCaseInsensitiveContains("phone") == true { errorText = nil }
             }
-            .onChange(of: auth.token) { _, tok in
-                if tok != nil { goHome = true }
-            }
         }
     }
 
-    // MARK: - Forms
+    // MARK: - Form
     private var signUpForm: some View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
@@ -184,42 +190,6 @@ struct SignUpView: View {
         }
     }
 
-    private var loginForm: some View {
-        VStack(spacing: 14) {
-            FieldRow(icon: "envelope", label: "Email or Username *") {
-                TextField("name@example.com", text: $loginEmail)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
-
-            FieldRow(icon: "lock", label: "Password *", trailing: {
-                Button { showLoginPassword.toggle() } label: {
-                    Image(systemName: showLoginPassword ? "eye.slash" : "eye")
-                        .foregroundStyle(.secondary)
-                }
-            }) {
-                Group {
-                    if showLoginPassword { TextField("••••••••", text: $loginPassword) }
-                    else { SecureField("••••••••", text: $loginPassword) }
-                }
-                .textInputAutocapitalization(.never)
-            }
-
-            HStack {
-                Spacer()
-                Button {
-                    errorText = "Password reset is handled on the website."
-                } label: {
-                    Text("Forgot password?")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.95))
-                        .underline()
-                }
-            }
-        }
-    }
-
     // MARK: - Actions
     private func handleSignUp() async {
         guard !firstName.isEmpty,
@@ -248,12 +218,10 @@ struct SignUpView: View {
                 userName: username.trimmingCharacters(in: .whitespacesAndNewlines)
             )
             isBusy = false
-            goHome = false
-            showWaiver = true
+            showWaiverSheet = true
         } catch let err as USAuthError {
             isBusy = false
 
-            // ----- FIX: avoid switch expression (works on older Swift) -----
             let bodyLower: String
             switch err {
             case .http(_, let sample):
@@ -261,7 +229,6 @@ struct SignUpView: View {
             default:
                 bodyLower = err.localizedDescription.lowercased()
             }
-            // ----------------------------------------------------------------
 
             var parts: [String] = []
             if bodyLower.contains("username") && (bodyLower.contains("exist") || bodyLower.contains("taken")) {
@@ -285,29 +252,9 @@ struct SignUpView: View {
             errorText = error.localizedDescription
         }
     }
-
-
-    private func handleSignIn() async {
-        let e = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !e.isEmpty, !loginPassword.isEmpty else {
-            errorText = "Please enter your email/username and password."
-            return
-        }
-
-        isBusy = true
-        errorText = nil
-        do {
-            try await auth.login(username: e, password: loginPassword)
-            isBusy = false
-            goHome = true
-        } catch {
-            isBusy = false
-            errorText = error.localizedDescription
-        }
-    }
 }
 
-// MARK: - Small UI building blocks
+// MARK: - Reusable UI (unchanged from your file)
 private struct FieldRow<Content: View, Trailing: View>: View {
     let icon: String
     let label: String
