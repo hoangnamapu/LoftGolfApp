@@ -2,7 +2,7 @@ import SwiftUI
 
 
 @main
-struct LoftGolfApp: App {
+struct LoftGolfAppApp: App {
 
     var body: some Scene {
         WindowGroup {
