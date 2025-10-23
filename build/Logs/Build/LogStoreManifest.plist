@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>logFormatVersion</key>
+	<integer>11</integer>
+	<key>logs</key>
+	<dict>
+		<key>84CEC6A7-EE08-4CED-9077-0FBE9D9C2B96</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>84CEC6A7-EE08-4CED-9077-0FBE9D9C2B96.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>LoftGolfApp project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>LoftGolfApp</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project LoftGolfApp with scheme LoftGolfApp and configuration Debug</string>
+			<key>timeStartedRecording</key>
+			<real>781829153.25687301</real>
+			<key>timeStoppedRecording</key>
+			<real>781829155.06613195</real>
+			<key>title</key>
+			<string>Building project LoftGolfApp with scheme LoftGolfApp and configuration Debug</string>
+			<key>uniqueIdentifier</key>
+			<string>84CEC6A7-EE08-4CED-9077-0FBE9D9C2B96</string>
+		</dict>
+		<key>ECA8C28B-7A29-4157-9C28-BB9A6E423996</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>ECA8C28B-7A29-4157-9C28-BB9A6E423996.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>LoftGolfApp project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>LoftGolfApp</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Cleaning project LoftGolfApp with scheme LoftGolfApp and configuration Debug</string>
+			<key>timeStartedRecording</key>
+			<real>781829152.99205804</real>
+			<key>timeStoppedRecording</key>
+			<real>781829153.22196198</real>
+			<key>title</key>
+			<string>Cleaning project LoftGolfApp with scheme LoftGolfApp and configuration Debug</string>
+			<key>uniqueIdentifier</key>
+			<string>ECA8C28B-7A29-4157-9C28-BB9A6E423996</string>
+		</dict>
+	</dict>
+</dict>
+</plist>
