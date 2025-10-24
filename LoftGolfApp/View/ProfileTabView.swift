@@ -14,6 +14,9 @@ struct ProfileTabView: View {
 
     @State private var showChangePasswordSheet = false
     @State private var showAvatarOptions = false
+    @State private var showCardSheet: Bool = false
+    @State private var savedCard: PaymentCardFormData? = nil
+
 
     init(isAuthenticated: Binding<Bool>, authToken: String? = nil) {
         self._isAuthenticated = isAuthenticated
@@ -76,6 +79,20 @@ struct ProfileTabView: View {
                                         .foregroundColor(.primary)
                                 }
                             }
+                            
+                            Section("Payments") {
+                                if let card = savedCard {
+                                    SavedCardSummary(data: card) {
+                                        showCardSheet = true
+                                    }
+                                } else {
+                                    Button {
+                                        showCardSheet = true
+                                    } label: {
+                                        Label("Add Credit/Debit Card", systemImage: "plus.circle.fill")
+                                    }
+                                }
+                            }
 
                             Section("Notifications") {
                                 Toggle(isOn: $viewModel.pushNotificationsEnabled) {
@@ -108,6 +125,8 @@ struct ProfileTabView: View {
                                     Label("Sign Out", systemImage: "arrow.right.square")
                                 }
                             }
+                            
+
                         }
                         .listStyle(.insetGrouped)
                         .scrollContentBackground(.hidden)
@@ -172,6 +191,11 @@ struct ProfileTabView: View {
             }
             .sheet(isPresented: $viewModel.showEditProfile) {
                 EditProfileView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showCardSheet) {
+                PaymentCardFormView(initial: savedCard) { data in
+                    savedCard = data
+                }
             }
         }
     }
