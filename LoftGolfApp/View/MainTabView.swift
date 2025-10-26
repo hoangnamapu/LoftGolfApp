@@ -29,23 +29,37 @@ struct MainTabView: View {
                     Label("Home", systemImage: "house.fill")
                 }
                 .tag(0)
-            
-            // Tab 2: Courses
-            CoursesTabView()
+
+            // Tab 2: Rewards
+            RewardsTabView()
                 .tabItem {
-                    Label("Courses", systemImage: "map.fill")
+                    Label("Rewards", systemImage: "gift.fill")
                 }
                 .tag(1)
-            
-            // Tab 3: Profile with auth integration
+
+            // Tab 3: Bookings
+            BookingsTabView()
+                .tabItem {
+                    Label("Bookings", systemImage: "calendar")
+                }
+                .tag(2)
+
+            // Tab 4: FAQ / Videos
+            FaqVideosTabView()
+                .tabItem {
+                    Label("FAQ/Videos", systemImage: "questionmark.circle")
+                }
+                .tag(3)
+
+            // Tab 5: Account with auth integration
             ProfileTabView(
                 isAuthenticated: $isAuthenticated,
                 authToken: authToken ?? authViewModel.token
             )
             .tabItem {
-                Label("Profile", systemImage: "person.fill")
+                Label("Account", systemImage: "person.fill")
             }
-            .tag(2)
+            .tag(4)
         }
         .accentColor(.black)
         .onAppear {
