@@ -12,11 +12,9 @@ struct ProfileTabView: View {
     @Binding var isAuthenticated: Bool
     let authToken: String?
 
-    @State private var showChangePasswordSheet = false
-    @State private var showAvatarOptions = false
-    @State private var showCardSheet: Bool = false
-    @State private var savedCard: PaymentCardFormData? = nil
-
+    @State private var showSettings = false
+    @State private var showCardSheet = false
+    @State private var savedCard: PaymentCardFormData?
 
     init(isAuthenticated: Binding<Bool>, authToken: String? = nil) {
         self._isAuthenticated = isAuthenticated
@@ -45,41 +43,39 @@ struct ProfileTabView: View {
 
                 Group {
                     if viewModel.isLoading {
-                        ProgressView("Loading profile...")
+                        ProgressView("Loading account...")
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if let profile = viewModel.userProfile {
                         List {
-                            Section {
-                                ProfileSummaryCard(profile: profile) {
-                                    showAvatarOptions = true
-                                }
-                                .listRowInsets(EdgeInsets())
+                            AccountHeaderView(profile: profile)
+                                .listRowInsets(EdgeInsets(top: 12, leading: 24, bottom: 12, trailing: 24))
+                                .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
+
+                            Section {
+                                NavigationLink {
+                                    AccountInformationView(viewModel: viewModel, profile: profile)
+                                } label: {
+                                    Label("Account Information", systemImage: "person.text.rectangle")
+                                }
+
+                                Button {
+                                    showSettings = true
+                                } label: {
+                                    Label("Settings", systemImage: "gearshape.fill")
+                                }
+
+                                Link(destination: URL(string: "https://loftgolfstudios.com/faq")!) {
+                                    Label("Help", systemImage: "questionmark.circle")
+                                }
+
+                                Button(role: .destructive) {
+                                    viewModel.showLogoutConfirmation = true
+                                } label: {
+                                    Label("Sign Out", systemImage: "arrow.right.square")
+                                }
                             }
 
-                            Section("Account") {
-                                Button {
-                                    viewModel.showEditProfile = true
-                                } label: {
-                                    Label("Edit Personal Info", systemImage: "person.text.rectangle")
-                                        .foregroundColor(.primary)
-                                }
-
-                                Button {
-                                    showAvatarOptions = true
-                                } label: {
-                                    Label("Change Avatar", systemImage: "person.crop.circle.badge.plus")
-                                        .foregroundColor(.primary)
-                                }
-
-                                Button {
-                                    showChangePasswordSheet = true
-                                } label: {
-                                    Label("Change Password", systemImage: "key.fill")
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                            
                             Section("Payments") {
                                 if let card = savedCard {
                                     SavedCardSummary(data: card) {
@@ -93,54 +89,19 @@ struct ProfileTabView: View {
                                     }
                                 }
                             }
-
-                            Section("Notifications") {
-                                Toggle(isOn: $viewModel.pushNotificationsEnabled) {
-                                    Label("Push Notifications", systemImage: "bell.badge.fill")
-                                }
-
-                                Toggle(isOn: $viewModel.emailNotificationsEnabled) {
-                                    Label("Email Updates", systemImage: "envelope.fill")
-                                }
-                            }
-
-                            Section("Support") {
-                                Link(destination: URL(string: "https://loftgolfstudios.com/faq")!) {
-                                    Label("FAQ", systemImage: "questionmark.circle")
-                                }
-
-                                Link(destination: URL(string: "https://www.instagram.com/loftgolfstudios")!) {
-                                    Label("Instagram Community", systemImage: "camera.fill")
-                                }
-
-                                Link(destination: URL(string: "https://www.facebook.com/loftgolfstudios/")!) {
-                                    Label("Facebook Page", systemImage: "person.3.fill")
-                                }
-                            }
-
-                            Section("Danger Zone") {
-                                Button(role: .destructive) {
-                                    viewModel.showLogoutConfirmation = true
-                                } label: {
-                                    Label("Sign Out", systemImage: "arrow.right.square")
-                                }
-                            }
-                            
-
                         }
-                        .listStyle(.insetGrouped)
+                        .listStyle(.plain)
                         .scrollContentBackground(.hidden)
-                        .background(Color.clear)
                     } else {
                         ContentUnavailableView(
-                            "No Profile Data",
+                            "No Account Data",
                             systemImage: "person.crop.circle.badge.exclamationmark",
-                            description: Text("Unable to load profile information")
+                            description: Text("Unable to load your account information")
                         )
                     }
                 }
             }
-            .navigationTitle("Profile")
+            .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
                 await viewModel.loadProfile()
@@ -153,15 +114,6 @@ struct ProfileTabView: View {
                 if viewModel.userProfile == nil {
                     await viewModel.loadProfile()
                 }
-            }
-            .confirmationDialog("Change Avatar", isPresented: $showAvatarOptions) {
-                Button("Upload Photo") {
-                    viewModel.startAvatarUpload()
-                }
-                Button("Take Photo") {
-                    viewModel.startAvatarCapture()
-                }
-                Button("Cancel", role: .cancel) {}
             }
             .confirmationDialog("Sign Out", isPresented: $viewModel.showLogoutConfirmation) {
                 Button("Sign Out", role: .destructive) {
@@ -186,8 +138,13 @@ struct ProfileTabView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
-            .sheet(isPresented: $showChangePasswordSheet) {
-                ChangePasswordSheet()
+            .sheet(isPresented: $showSettings) {
+                AccountSettingsView(viewModel: viewModel, isPresented: $showSettings)
+            }
+            .sheet(isPresented: $showCardSheet) {
+                PaymentCardFormView(initial: savedCard) { data in
+                    savedCard = data
+                }
             }
             .sheet(isPresented: $viewModel.showEditProfile) {
                 EditProfileView(viewModel: viewModel)
@@ -201,135 +158,108 @@ struct ProfileTabView: View {
     }
 }
 
-private struct ProfileSummaryCard: View {
+private struct AccountHeaderView: View {
     let profile: UserProfile
-    let onChangeAvatar: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.15))
-                    .frame(width: 96, height: 96)
+        HStack(spacing: 16) {
+            Image("LoftGolfLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 90, height: 90)
+                .clipShape(Circle())
+                .accessibilityLabel("Loft Golf logo")
 
-                Text(profileInitials)
-                    .font(.title.bold())
-                    .foregroundColor(.blue)
-            }
+            Text(profile.fullName)
+                .font(.title2.weight(.semibold))
+                .foregroundColor(.primary)
 
-            VStack(spacing: 4) {
-                Text(profile.fullName)
-                    .font(.title3.weight(.semibold))
-                Text(profile.email)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                if let phone = profile.phone, !phone.isEmpty {
-                    Text(phone)
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Button {
-                onChangeAvatar()
-            } label: {
-                Text("Change Avatar")
-                    .font(.subheadline.weight(.medium))
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(20)
-            }
+            Spacer()
         }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-        .padding(.horizontal)
-    }
-
-    private var profileInitials: String {
-        let firstInitial = profile.firstName.first.map(String.init) ?? ""
-        let lastInitial = profile.lastName.first.map(String.init) ?? ""
-        let initials = (firstInitial + lastInitial)
-        return initials.isEmpty ? "?" : initials.uppercased()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 12)
     }
 }
 
-private struct ChangePasswordSheet: View {
+private struct AccountInformationView: View {
+    @ObservedObject var viewModel: ProfileViewModel
+    let profile: UserProfile
+
+    private var preferredLocation: String {
+        if let reference2 = profile.reference2, !reference2.isEmpty {
+            return reference2
+        }
+        return "Not set"
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Text("If you would like to modify your account details, please contact") +
+                Text(" CUSTOMER SUPPORT").bold()
+            }
+
+            Section("Account Information") {
+                LabeledContent("Preferred Location", value: preferredLocation)
+                LabeledContent("Email Address", value: profile.email)
+                LabeledContent("First Name", value: profile.firstName)
+                LabeledContent("Last Name", value: profile.lastName)
+                LabeledContent("Phone", value: profile.phone ?? "Not provided")
+            }
+
+            Section {
+                Button {
+                    viewModel.showEditProfile = true
+                } label: {
+                    Text("Update")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.black)
+            }
+        }
+        .navigationTitle("Account Information")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct AccountSettingsView: View {
+    @ObservedObject var viewModel: ProfileViewModel
+    @Binding var isPresented: Bool
     @Environment(\.dismiss) private var dismiss
-    @State private var currentPassword = ""
-    @State private var newPassword = ""
-    @State private var confirmPassword = ""
-    @State private var isProcessing = false
-    @State private var showMismatchAlert = false
+
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+        return "Version: \(version) (\(build))"
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Current Password") {
-                    SecureField("Current Password", text: $currentPassword)
-                }
-
-                Section("New Password") {
-                    SecureField("New Password", text: $newPassword)
-                    SecureField("Confirm New Password", text: $confirmPassword)
+                Section("Notifications") {
+                    Toggle("Push Notifications", isOn: $viewModel.pushNotificationsEnabled)
                 }
 
                 Section {
-                    Button {
-                        attemptPasswordChange()
-                    } label: {
-                        if isProcessing {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            Text("Update Password")
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .disabled(isProcessing || currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty)
+                    Text(appVersion)
+                        .foregroundColor(.secondary)
                 }
             }
-            .navigationTitle("Change Password")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
+                        isPresented = false
                         dismiss()
                     }
-                    .disabled(isProcessing)
                 }
             }
-            .alert("Passwords Do Not Match", isPresented: $showMismatchAlert) {
-                Button("OK", role: .cancel) {}
-            }
-        }
-    }
-
-    private func attemptPasswordChange() {
-        guard newPassword == confirmPassword else {
-            showMismatchAlert = true
-            return
-        }
-
-        isProcessing = true
-        Task {
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            await MainActor.run {
-                isProcessing = false
-                dismiss()
-            }
         }
     }
 }
 
-#if DEBUG
-struct ProfileTabView_Previews: PreviewProvider {
-    static var previews: some View {
-        ProfileTabView(isAuthenticated: .constant(true))
-    }
+#Preview {
+    ProfileTabView(isAuthenticated: .constant(true))
 }
-#endif
