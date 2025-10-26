@@ -149,6 +149,11 @@ struct ProfileTabView: View {
             .sheet(isPresented: $viewModel.showEditProfile) {
                 EditProfileView(viewModel: viewModel)
             }
+            .sheet(isPresented: $showCardSheet) {
+                PaymentCardFormView(initial: savedCard) { data in
+                    savedCard = data
+                }
+            }
         }
     }
 }
