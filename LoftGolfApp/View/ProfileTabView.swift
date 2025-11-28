@@ -15,6 +15,8 @@ struct ProfileTabView: View {
     @State private var showSettings = false
     @State private var showCardSheet = false
     @State private var savedCard: PaymentCardFormData?
+    @State private var showGiftCardStore = false
+
 
     init(isAuthenticated: Binding<Bool>, authToken: String? = nil) {
         self._isAuthenticated = isAuthenticated
@@ -89,6 +91,15 @@ struct ProfileTabView: View {
                                     }
                                 }
                             }
+                            
+                            Section("Loft Golf Studios Store") {
+                                Button {
+                                    showGiftCardStore = true
+                                } label: {
+                                    Label("Buy Gift Card", systemImage: "gift")
+                                }
+                            }
+
                         }
                         .listStyle(.plain)
                         .scrollContentBackground(.hidden)
@@ -154,6 +165,21 @@ struct ProfileTabView: View {
                     savedCard = data
                 }
             }
+            .sheet(isPresented: $showGiftCardStore) {
+                NavigationStack {
+                    WebView(url: URL(string: "https://clients.uschedule.com/loftgolfstudios/Product/GiftCertDetail")!)
+                        .navigationTitle("Gift Cards")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showGiftCardStore = false
+                                }
+                            }
+                        }
+                }
+            }
+
         }
     }
 }
@@ -263,3 +289,18 @@ private struct AccountSettingsView: View {
 #Preview {
     ProfileTabView(isAuthenticated: .constant(true))
 }
+
+import WebKit
+
+struct WebView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webview = WKWebView()
+        webview.load(URLRequest(url: url))
+        return webview
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+}
+
