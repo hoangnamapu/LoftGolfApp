@@ -38,12 +38,7 @@ struct MainTabView: View {
                 .tag(1)
 
             // Tab 3: Bookings
-            BookingsTabView()
-                .tabItem {
-                    Label("Bookings", systemImage: "calendar")
-                }
-                .tag(2)
-
+           
             // Tab 4: FAQ / Videos
             FaqVideosTabView()
                 .tabItem {
