@@ -1,13 +1,8 @@
-//
-//  ProfileTabView.swift
-//  LoftGolfApp
-//
-//  Created by ZhiYue Wang on 10/14/25.
-//
-
 import SwiftUI
 
 struct ProfileTabView: View {
+    
+    
     @StateObject private var viewModel = ProfileViewModel()
     @Binding var isAuthenticated: Bool
     let authToken: String?
@@ -16,6 +11,10 @@ struct ProfileTabView: View {
     @State private var showCardSheet = false
     @State private var savedCard: PaymentCardFormData?
     @State private var showGiftCardStore = false
+    
+    @State private var localCard: LocalCardInfo?
+    @State private var savedCards: [SavedCardDisplay] = []
+
 
 
     init(isAuthenticated: Binding<Bool>, authToken: String? = nil) {
@@ -78,20 +77,26 @@ struct ProfileTabView: View {
                                 }
                             }
 
-                            Section("Payments") {
-                                if let card = savedCard {
-                                    SavedCardSummary(data: card) {
-                                        showCardSheet = true
-                                    }
-                                } else {
-                                    Button {
-                                        showCardSheet = true
-                                    } label: {
-                                        Label("Add Credit/Debit Card", systemImage: "plus.circle.fill")
+                            Section("Payment Methods") {
+                                NavigationLink {
+                                    SavedCardsListView()
+                                } label: {
+                                    HStack {
+                                        Label("Credit Cards", systemImage: "creditcard.fill")
+                                        Spacer()
+                                        if !savedCards.isEmpty {
+                                            Text("\(savedCards.count)")
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                             }
-                            
+
+
                             Section("Loft Golf Studios Store") {
                                 Button {
                                     showGiftCardStore = true
@@ -125,7 +130,17 @@ struct ProfileTabView: View {
                 if viewModel.userProfile == nil {
                     await viewModel.loadProfile()
                 }
+ 
             }
+            .task {
+                localCard = LocalCardStore.load()
+                loadSavedCards()
+            }
+            .onAppear {
+                loadSavedCards()
+            }
+
+
             .confirmationDialog("Sign Out", isPresented: $viewModel.showLogoutConfirmation) {
                 Button("Sign Out", role: .destructive) {
                     viewModel.logout()
@@ -160,11 +175,6 @@ struct ProfileTabView: View {
             .sheet(isPresented: $viewModel.showEditProfile) {
                 EditProfileView(viewModel: viewModel)
             }
-            .sheet(isPresented: $showCardSheet) {
-                PaymentCardFormView(initial: savedCard) { data in
-                    savedCard = data
-                }
-            }
             .sheet(isPresented: $showGiftCardStore) {
                 NavigationStack {
                     WebView(url: URL(string: "https://clients.uschedule.com/loftgolfstudios/Product/GiftCertDetail")!)
@@ -179,8 +189,11 @@ struct ProfileTabView: View {
                         }
                 }
             }
-
         }
+    }
+    
+    private func loadSavedCards() {
+        savedCards = PaymentCardKeychainManager.shared.loadAllCardDisplays()
     }
 }
 
@@ -286,6 +299,9 @@ private struct AccountSettingsView: View {
     }
 }
 
+
+
+
 #Preview {
     ProfileTabView(isAuthenticated: .constant(true))
 }
@@ -303,4 +319,3 @@ struct WebView: UIViewRepresentable {
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
-

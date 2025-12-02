@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SavedCardSummary: View {
-    let data: PaymentCardFormData
+    let card: PrepayServiceCustomer
     let onTap: () -> Void
 
     var body: some View {
@@ -11,13 +11,20 @@ struct SavedCardSummary: View {
                     .font(.system(size: 26))
                     .foregroundStyle(.tint)
                     .frame(width: 36)
+
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(masked(number: data.number))
+                    Text(card.unitName ?? "Prepaid Card")
                         .font(.headline)
-                    Text("Exp: \(expString(data))  •  \(data.nameOnCard)")
+
+                    Text("Units Remaining: \(card.remainingUnits)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Text("Expires: \(formattedDate(card.endDate))")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+
                 Spacer()
             }
             .padding(12)
@@ -26,16 +33,14 @@ struct SavedCardSummary: View {
         .buttonStyle(.plain)
     }
 
-    private func masked(number: String) -> String {
-        let digits = number.filter(\.isNumber)
-        let last4 = digits.suffix(4)
-        return "•••• •••• •••• \(last4)"
+    private func formattedDate(_ dateString: String?) -> String {
+        guard let dateString else { return "N/A" }
+        return String(dateString.prefix(10)) // yyyy-mm-dd
     }
 
-    private func expString(_ d: PaymentCardFormData) -> String {
-        guard let m = d.expMonth, let y = d.expYear else { return "--/--" }
-        let yy = String(y % 100)
-        let mm = String(format: "%02d", m)
-        return "\(mm)/\(yy)"
+
+    private func masked(number: String) -> String {
+        let last4 = number.suffix(4)
+        return "•••• •••• •••• \(last4)"
     }
 }
