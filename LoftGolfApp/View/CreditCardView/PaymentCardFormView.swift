@@ -1,30 +1,52 @@
-
-//
-//  PaymentCardFormView.swift
-//  LoftGolfApp
-//
-//  Drop-in credit/debit card form with basic validation (Luhn),
-//  expiry checks, and simple billing fields.
-//  Call with: PaymentCardFormView(initial: savedCard) { saved = $0 }
-//
-
 import SwiftUI
 import Foundation
 
-// MARK: - Model (you can also move this to a shared models file if you prefer)
+
 struct PaymentCardFormData: Equatable, Codable {
     var nameOnCard: String = ""
-    var number: String = ""          // digits only in storage
-    var expMonth: Int? = nil         // 1...12
-    var expYear: Int? = nil          // four-digit year
-    var cvv: String = ""             // digits only (3-4)
+    var number: String = ""
+    var expMonth: Int? = nil
+    var expYear: Int? = nil
+    var expiryText: String = "" {
+        didSet {
+            parseExpiry()
+        }
+    }
+    var cvv: String = ""
     var billingAddress: String = ""
     var billingCity: String = ""
-    var billingState: String = ""    // 2-letter (e.g., AZ)
-    var billingZip: String = ""      // 5(-4) digits
+    var billingState: String = ""
+    var billingZip: String = ""
+    
+    mutating func parseExpiry() {
+        let digits = expiryText.filter { $0.isNumber }
+        
+        if digits.count >= 2 {
+            let monthStr = String(digits.prefix(2))
+            if let m = Int(monthStr), (1...12).contains(m) {
+                expMonth = m
+            } else {
+                expMonth = nil
+            }
+        } else {
+            expMonth = nil
+        }
+        
+        if digits.count >= 4 {
+            let yearStr = String(digits.suffix(digits.count - 2).prefix(2))
+            if let yy = Int(yearStr) {
+                let currentYear = Calendar.current.component(.year, from: .now)
+                let century = (currentYear / 100) * 100
+                expYear = century + yy
+            } else {
+                expYear = nil
+            }
+        } else {
+            expYear = nil
+        }
+    }
 }
 
-// MARK: - View
 struct PaymentCardFormView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -36,24 +58,16 @@ struct PaymentCardFormView: View {
     @State private var errorText: String?
     @FocusState private var focusedField: Field?
 
-    enum Field: Hashable { case name, number, month, year, cvv, address, city, state, zip }
+    enum Field: Hashable { case name, number, expiry, cvv, address, city, state, zip }
 
-    // Years: current -> +15
     private var yearOptions: [Int] {
         let y = Calendar.current.component(.year, from: .now)
         return Array(y...(y + 15))
     }
 
-    // Months with labels like "1 - Jan"
-    private let monthLabels: [(value: Int, label: String)] = [
-        (1, "1 - Jan"),(2, "2 - Feb"),(3, "3 - Mar"),(4, "4 - Apr"),(5, "5 - May"),(6, "6 - Jun"),
-        (7, "7 - Jul"),(8, "8 - Aug"),(9, "9 - Sep"),(10, "10 - Oct"),(11, "11 - Nov"),(12, "12 - Dec")
-    ]
-
     init(initial: PaymentCardFormData? = nil, onSave: @escaping (PaymentCardFormData) -> Void) {
         self.initial = initial
         self.onSave = onSave
-        // _form is @State; value is applied in .onAppear
     }
 
     var body: some View {
@@ -72,29 +86,31 @@ struct PaymentCardFormView: View {
                     .textContentType(.creditCardNumber)
                     .focused($focusedField, equals: .number)
 
-                    HStack {
-                        Picker("Expiration Month", selection: Binding(
-                            get: { form.expMonth ?? 0 },
-                            set: { form.expMonth = $0 == 0 ? nil : $0 }
-                        )) {
-                            Text("Month").tag(0)
-                            ForEach(monthLabels, id: \.value) { m in
-                                Text(m.label).tag(m.value)
-                            }
-                        }
-                        .focused($focusedField, equals: .month)
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar")
+                            .foregroundColor(.gray)
 
-                        Picker("Expiration Year", selection: Binding(
-                            get: { form.expYear ?? 0 },
-                            set: { form.expYear = $0 == 0 ? nil : $0 }
-                        )) {
-                            Text("Year").tag(0)
-                            ForEach(yearOptions, id: \.self) { y in
-                                Text(String(y)).tag(y)
+                        TextField("MM/YY", text: $form.expiryText)
+                            .keyboardType(.numberPad)
+                            .focused($focusedField, equals: .expiry)
+                            .onChange(of: form.expiryText) { newValue in
+                                let digits = digitsOnly(newValue)
+                                if digits.count <= 4 {
+                                    // Format as MM/YY
+                                    if digits.count > 2 {
+                                        form.expiryText = String(digits.prefix(2)) + "/" + String(digits.dropFirst(2))
+                                    } else {
+                                        form.expiryText = digits
+                                    }
+                                } else {
+                                    form.expiryText = String(digits.prefix(2)) + "/" + String(digits.dropFirst(2).prefix(2))
+                                }
                             }
-                        }
-                        .focused($focusedField, equals: .year)
                     }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 14)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
 
                     TextField("Security Code", text: $form.cvv)
                         .keyboardType(.numberPad)
@@ -147,7 +163,7 @@ struct PaymentCardFormView: View {
                     .disabled(!isValid)
                 }
             }
-            .navigationTitle("New Credit Card Details")
+            .navigationTitle("Credit Card Details")
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -155,7 +171,14 @@ struct PaymentCardFormView: View {
                 }
             }
             .onAppear {
-                if let initial { self.form = initial }
+                if let initial {
+                    self.form = initial
+                    // Reconstruct expiry text from parsed values
+                    if let m = form.expMonth, let y = form.expYear {
+                        let yy = y % 100
+                        form.expiryText = String(format: "%02d/%02d", m, yy)
+                    }
+                }
             }
         }
     }
@@ -182,6 +205,10 @@ struct PaymentCardFormView: View {
             errorText = explainFirstError() ?? "Please complete the form."
             return
         }
+        
+        // Save card display info to Keychain (only last 4 digits + billing info)
+        PaymentCardKeychainManager.shared.saveCardDisplay(from: form)
+        
         onSave(form)
         dismiss()
     }
@@ -190,8 +217,9 @@ struct PaymentCardFormView: View {
         if form.nameOnCard.trimmingCharacters(in: .whitespaces).isEmpty { return "Name on card is required." }
         if !isLikelyCardNumber(form.number) { return "Card number must be 13–19 digits." }
         if !luhnCheck(form.number) { return "Card number failed verification (check digits)." }
-        if form.expMonth == nil { return "Select an expiration month." }
-        if form.expYear == nil { return "Select an expiration year." }
+        if form.expMonth == nil { return "Enter expiration date as MM/YY." }
+        if form.expYear == nil { return "Enter expiration date as MM/YY." }
+        if let m = form.expMonth, !(1...12).contains(m) { return "Month must be between 01 and 12." }
         if let m = form.expMonth, let y = form.expYear, isExpired(month: m, year: y) { return "Card is expired." }
         if !(3...4).contains(form.cvv.count) { return "Security code should be 3–4 digits." }
         if form.billingAddress.trimmingCharacters(in: .whitespaces).isEmpty { return "Billing address is required." }
@@ -209,7 +237,6 @@ struct PaymentCardFormView: View {
     private func formatCardForDisplay(_ raw: String) -> String {
         let d = digitsOnly(raw)
         guard !d.isEmpty else { return "" }
-        // Group as 4-4-4-4… (up to 19 digits)
         var out: [String] = []
         var i = d.startIndex
         while i < d.endIndex {
@@ -226,7 +253,6 @@ struct PaymentCardFormView: View {
     }
 
     private func luhnCheck(_ digits: String) -> Bool {
-        // https://en.wikipedia.org/wiki/Luhn_algorithm
         var sum = 0
         let rev = digits.reversed().compactMap { Int(String($0)) }
         for (idx, d) in rev.enumerated() {
@@ -251,7 +277,6 @@ struct PaymentCardFormView: View {
               let endOfMonth = cal.date(byAdding: DateComponents(month: 1, day: -1), to: firstOfMonth) else {
             return false
         }
-        // Compare end of month to "now"
         return endOfMonth < Date()
     }
 }

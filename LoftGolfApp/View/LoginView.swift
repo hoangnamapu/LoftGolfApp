@@ -10,6 +10,7 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var showPassword = false
+    
 
     // UI state
     @State private var isBusy = false
@@ -17,6 +18,7 @@ struct LoginView: View {
 
     // ➕ Sign Up presentation
     @State private var showSignUp = false
+    @State private var showForgotPasscode = false
 
     @StateObject private var auth = AuthViewModel()
 
@@ -56,7 +58,7 @@ struct LoginView: View {
                     HStack {
                         Spacer()
                         Button {
-                            errorText = "Password reset is handled on the USchedule website for this account."
+                            showForgotPasscode = true
                         } label: {
                             Text("Forgot password?")
                                 .font(.footnote.weight(.medium))
@@ -123,6 +125,20 @@ struct LoginView: View {
                 .padding(.horizontal, 18)
             }
             .ignoresSafeArea(.keyboard)
+            .sheet(isPresented: $showForgotPasscode) {
+                NavigationStack {
+                    WebView(url: URL(string: "https://clients.uschedule.com/loftgolfstudios/Account/PasswordReminder")!)
+                        .navigationTitle("Password reset")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showForgotPasscode = false
+                                }
+                            }
+                        }
+                }
+            }
         }
         // ➕ Full-screen Sign Up (your existing screen)
         .fullScreenCover(isPresented: $showSignUp) {
