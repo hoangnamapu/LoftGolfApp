@@ -9,6 +9,7 @@ struct ProfileTabView: View {
 
     @State private var showSettings = false
     @State private var showCardSheet = false
+    @State private var showForgotPasscode = false
     @State private var savedCard: PaymentCardFormData?
     @State private var showGiftCardStore = false
     
@@ -68,6 +69,12 @@ struct ProfileTabView: View {
 
                                 Link(destination: URL(string: "https://loftgolfstudios.com/faq")!) {
                                     Label("Help", systemImage: "questionmark.circle")
+                                }
+                                
+                                Button {
+                                    showForgotPasscode = true
+                                } label: {
+                                    Label("Reset Password", systemImage: "key.fill")
                                 }
 
                                 Button(role: .destructive) {
@@ -140,6 +147,7 @@ struct ProfileTabView: View {
                 loadSavedCards()
             }
 
+            
 
             .confirmationDialog("Sign Out", isPresented: $viewModel.showLogoutConfirmation) {
                 Button("Sign Out", role: .destructive) {
@@ -184,6 +192,20 @@ struct ProfileTabView: View {
                             ToolbarItem(placement: .navigationBarTrailing) {
                                 Button("Done") {
                                     showGiftCardStore = false
+                                }
+                            }
+                        }
+                }
+            }
+            .sheet(isPresented: $showForgotPasscode) {
+                NavigationStack {
+                    WebView(url: URL(string: "https://clients.uschedule.com/loftgolfstudios/Account/PasswordReminder")!)
+                        .navigationTitle("Password reset")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showForgotPasscode = false
                                 }
                             }
                         }
