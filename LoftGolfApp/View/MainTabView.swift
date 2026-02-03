@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Main view with bottom navigation bar
+//Main view with bottom navigation bar
 struct MainTabView: View {
     @State private var selectedTab = 0
     @StateObject private var authViewModel = AuthViewModel()
@@ -19,12 +19,31 @@ struct MainTabView: View {
     init(isAuthenticated: Binding<Bool>, authToken: String? = nil) {
         self._isAuthenticated = isAuthenticated
         self.authToken = authToken
+        
+        // Configure Tab Bar appearance ONLY (not global tint)
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(white: 0.1, alpha: 1)  // Dark gray background
+        
+        // Add top border line
+        appearance.shadowColor = UIColor.gray.withAlphaComponent(0.3)
+        
+        // Unselected tab color
+        appearance.stackedLayoutAppearance.normal.iconColor = UIColor.gray
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.gray]
+        
+        // Selected tab color - green
+        appearance.stackedLayoutAppearance.selected.iconColor = UIColor.systemGreen
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.systemGreen]
+        
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
     }
     
     var body: some View {
         TabView(selection: $selectedTab) {
             // Tab 1: Home
-            HomeTabView()
+            HomeTabView(authToken: authToken)
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
@@ -38,7 +57,12 @@ struct MainTabView: View {
                 .tag(1)
 
             // Tab 3: Bookings
-           
+            BookingsTabView(authToken: authToken)
+                .tabItem {
+                    Label("Bookings", systemImage: "calendar")
+                }
+                .tag(2)
+            
             // Tab 4: FAQ / Videos
             FaqVideosTabView()
                 .tabItem {
@@ -56,7 +80,6 @@ struct MainTabView: View {
             }
             .tag(4)
         }
-        .accentColor(.black)
         .onAppear {
             // Set the auth token in the view model if available
             if let token = authToken {
@@ -67,5 +90,5 @@ struct MainTabView: View {
 }
 
 #Preview {
-    MainTabView(isAuthenticated: .constant(true))
+    MainTabView(isAuthenticated: .constant(true), authToken: nil)
 }
