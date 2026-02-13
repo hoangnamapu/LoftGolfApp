@@ -20,14 +20,33 @@ struct BookingsTabView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(.systemGroupedBackground)
-                    .ignoresSafeArea()
+                LinearGradient(
+                    colors: [
+                        Color.black,
+                        Color.black,
+                        Color.black,
+                        Color.black,
+                        Color.black,
+                        Color(.systemGray6).opacity(0.25),
+                        Color.white
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
                 
                 if viewModel.isLoading && viewModel.upcomingAppointments.isEmpty {
                     ProgressView("Loading...")
                 } else {
                     ScrollView {
                         VStack(spacing: 20) {
+                            
+                            Text("Bookings")
+                                .font(.system(size: 34, weight: .bold))   
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 10)
+
                             // Quick Book Button
                             quickBookButton
                             
@@ -35,10 +54,11 @@ struct BookingsTabView: View {
                             upcomingSection
                         }
                         .padding()
+                        .frame(maxWidth: .infinity, alignment: .top)
+                        .frame(minHeight: UIScreen.main.bounds.height, alignment: .top)
                     }
                 }
             }
-            .navigationTitle("Bookings")
             .refreshable {
                 await viewModel.loadAppointments()
             }
@@ -156,7 +176,7 @@ struct BookingsTabView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        .padding(.vertical, 90)
         .background(Color(.systemBackground))
         .cornerRadius(16)
     }
