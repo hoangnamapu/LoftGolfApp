@@ -19,47 +19,64 @@ struct HomeTabView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    //Welcome Header
-                    WelcomeHeader(
-                        greeting: viewModel.greeting,
-                        customerName: viewModel.customerName ?? "Golfer"
-                    )
-                    
-                    //Rewards Card (Placeholder)
-                    RewardsCard()
-                    
-                    //Open Door Button (shows when in-venue during appointment)
-                    if viewModel.hasActiveAppointment {
-                        OpenDoorButton {
-                            viewModel.openDoor()
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color.black,
+                        Color.black,
+                        Color.black,
+                        Color.black,
+                        Color.black,
+                        Color(.systemGray6).opacity(0.25),
+                        Color.white
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+
+                Image("image2")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 900)
+                    .opacity(0.4)
+                    .offset(y: 10)
+                    .allowsHitTesting(false)
+
+                ScrollView {
+                    VStack(spacing: 20) {
+                        WelcomeHeader(
+                            greeting: viewModel.greeting,
+                            customerName: viewModel.customerName ?? "Golfer"
+                        )
+
+                        RewardsCard()
+
+                        if viewModel.hasActiveAppointment {
+                            OpenDoorButton { viewModel.openDoor() }
                         }
+
+                        QuickBookCard { showNewBooking = true }
+
+                        UpcomingAppointmentsSection(
+                            appointments: viewModel.upcomingAppointments,
+                            isLoading: viewModel.isLoading,
+                            authToken: authToken
+                        )
+
+                        if viewModel.hasActiveAppointment {
+                            InVenueControlsCard()
+                        }
+
+                        Spacer(minLength: 250)
                     }
-                    
-                    //Quick Book Section
-                    QuickBookCard {
-                        showNewBooking = true
-                    }
-                    
-                    //Upcoming Appointments
-                    UpcomingAppointmentsSection(
-                        appointments: viewModel.upcomingAppointments,
-                        isLoading: viewModel.isLoading,
-                        authToken: authToken
-                    )
-                    
-                    //In-Venue Controls (shows when in-venue during appointment)
-                    if viewModel.hasActiveAppointment {
-                        InVenueControlsCard()
-                    }
-                    
-                    Spacer(minLength: 40)
+                    .padding(.horizontal)
+                    .padding(.top, 50)
                 }
-                .padding(.horizontal)
-                .padding(.top, 10)
             }
-            .background(Color.black.ignoresSafeArea())
+
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: UIScreen.main.bounds.height, alignment: .top )
             .navigationBarHidden(true)
             .refreshable {
                 await viewModel.loadData()
@@ -89,10 +106,10 @@ struct WelcomeHeader: View {
     var body: some View {
         HStack {
             // Logo from Assets
-            Image("LoftGolfLogo")
+            Image("image2")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 50, height: 50)
+                .frame(width: 60, height: 70)
                 .clipShape(Circle())
             
             VStack(alignment: .leading, spacing: 2) {
@@ -107,7 +124,7 @@ struct WelcomeHeader: View {
             
             Spacer()
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 13)
     }
 }
 
@@ -120,7 +137,7 @@ struct RewardsCard: View {
                     .foregroundStyle(.green)
                 
                 Text("Loft Golf Rewards")
-                    .font(.headline)
+                    .font(.system(size: 25, weight: .semibold))
                     .foregroundStyle(.white)
                 
                 Spacer()
@@ -129,7 +146,7 @@ struct RewardsCard: View {
                     // Info action
                 } label: {
                     Image(systemName: "questionmark.circle")
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(.white)
                 }
             }
             
@@ -142,7 +159,7 @@ struct RewardsCard: View {
             
             HStack {
                 Text("Points")
-                    .font(.subheadline)
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.gray)
                 
                 Spacer()
@@ -161,7 +178,7 @@ struct RewardsCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
         )
     }
 }
@@ -203,7 +220,7 @@ struct QuickBookCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Book Now")
-                .font(.headline)
+                .font(.system(size: 25, weight: .semibold))
                 .foregroundStyle(.white)
             
             // Reserve button
@@ -213,7 +230,7 @@ struct QuickBookCard: View {
                         .font(.title2)
                     
                     Text("Reserve Simulator")
-                        .font(.headline.bold())
+                        .font(.system(size: 18, weight: .semibold))
                 }
                 .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
@@ -227,7 +244,7 @@ struct QuickBookCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
         )
     }
 }
@@ -266,7 +283,7 @@ struct UpcomingAppointmentsSection: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Upcoming")
-                    .font(.headline)
+                    .font(.system(size: 25, weight: .semibold))
                     .foregroundStyle(.white)
                 
                 Spacer()
@@ -294,12 +311,12 @@ struct UpcomingAppointmentsSection: View {
                 // Empty state
                 VStack(spacing: 12) {
                     Image(systemName: "calendar.badge.plus")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.gray)
+                        .font(.system(size: 60))
+                        .foregroundStyle(.green)
                     
                     Text("No upcoming reservations")
-                        .font(.subheadline)
-                        .foregroundStyle(.gray)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 30)
@@ -315,7 +332,7 @@ struct UpcomingAppointmentsSection: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
         )
     }
 }
