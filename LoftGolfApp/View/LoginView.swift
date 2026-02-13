@@ -24,8 +24,19 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [.black, .gray], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
+            LinearGradient(
+                colors: [
+                    Color.black,
+                    Color.black,
+                    Color.black,
+                    Color.black,
+                    Color.black,
+                    Color(.systemGray6).opacity(0.25),
+                    Color.white
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )                .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
@@ -74,13 +85,16 @@ struct LoginView: View {
                     } label: {
                         Group {
                             if isBusy { ProgressView() }
-                            else { Text("Log In").font(.body.weight(.semibold)) }
+                            else { Text("Log In").font(.body.weight(.semibold)) .foregroundStyle(.white)}
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 13)
-                        .background(Color.black.opacity(0.9))
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .background(Color(.systemGray6).opacity(0.15))
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                        )
                     }
                     .disabled(isBusy)
                     .padding(.horizontal)
@@ -106,12 +120,16 @@ struct LoginView: View {
                         showSignUp = true
                     } label: {
                         Text("Don’t have an account? Create one")
-                            .font(.body.weight(.medium))
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
-                            .background(Color.white.opacity(0.95))
-                            .foregroundStyle(.black)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .background(Color(.systemGray6).opacity(0.15))
+                            .cornerRadius(16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                            )
                     }
                     .padding(.horizontal)
                     Spacer(minLength: 24)
