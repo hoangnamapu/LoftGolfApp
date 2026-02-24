@@ -1,18 +1,26 @@
-// In-memory mapping for local smoke tests (no Firestore needed).
-// Note: mapping resets if the server restarts.
+const { Firestore } = require("@google-cloud/firestore");
 
-const map = new Map();
+const db = new Firestore();
+const COLLECTION = process.env.FIRESTORE_COLLECTION || "bookingEventMap";
+
+function docRef(appointmentId) {
+  return db.collection(COLLECTION).doc(String(appointmentId));
+}
 
 async function getMapping(appointmentId) {
-  return map.get(String(appointmentId)) || null;
+  const snap = await docRef(appointmentId).get();
+  return snap.exists ? snap.data() : null;
 }
 
 async function setMapping(appointmentId, data) {
-  map.set(String(appointmentId), data);
+  await docRef(appointmentId).set(
+    { ...data, updatedAt: new Date().toISOString() },
+    { merge: true }
+  );
 }
 
 async function deleteMapping(appointmentId) {
-  map.delete(String(appointmentId));
+  await docRef(appointmentId).delete();
 }
 
 module.exports = { getMapping, setMapping, deleteMapping };
