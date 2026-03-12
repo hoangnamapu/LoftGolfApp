@@ -14,23 +14,48 @@ function requireKey(req, res, next) {
 
 function calendarForBay(bay) {
   if (String(bay) === "1") return bay1CalendarId;
-  if (String(bay) === "2") return bay2CalendarId;
+  if (String(bay) === "2") {
+    if (!bay2CalendarId) throw new Error("Bay 2 is not configured (BAY2_CALENDAR_ID not set)");
+    return bay2CalendarId;
+  }
   throw new Error(`Unknown bay: ${bay}`);
+}
+
+/**
+ * Core sync logic shared by the POST endpoint and the poller.
+ * Idempotent: safe to call multiple times with the same booking data.
+ */
+async function syncBooking(booking) {
+  const calendarId = calendarForBay(booking.bay);
+  const appointmentId = String(booking.id);
+  const existing = await getMapping(appointmentId);
+
+  if (String(booking.status).toUpperCase() === "CANCELED") {
+    if (existing?.eventId) {
+      await deleteEvent(existing.calendarId, existing.eventId);
+    }
+    await deleteMapping(appointmentId);
+    return { action: "cancel", appointmentId };
+  }
+
+  const eventBody = toEvent(booking, timeZone);
+
+  if (!existing?.eventId) {
+    const created = await createEvent(calendarId, eventBody);
+    await setMapping(appointmentId, { calendarId, eventId: created.id });
+    return { action: "create", appointmentId, eventId: created.id };
+  } else {
+    const updated = await patchEvent(existing.calendarId, existing.eventId, eventBody);
+    await setMapping(appointmentId, { calendarId: existing.calendarId, eventId: existing.eventId });
+    return { action: "update", appointmentId, eventId: updated.id };
+  }
 }
 
 app.get("/health", (_, res) => res.json({ ok: true }));
 
 /**
- * booking payload example:
- * {
- *   "id": "12345",
- *   "bay": 1,
- *   "startISO": "2026-02-19T15:00:00-07:00",
- *   "endISO": "2026-02-19T16:00:00-07:00",
- *   "customerName": "Test Customer",
- *   "notes": "Sprint 7 test",
- *   "status": "ACTIVE" // or "CANCELED"
- * }
+ * Manual override endpoint — still fully functional.
+ * booking payload: { id, bay, startISO, endISO, customerName?, notes?, status }
  */
 app.post("/sync/uschedule", requireKey, async (req, res) => {
   try {
@@ -38,44 +63,16 @@ app.post("/sync/uschedule", requireKey, async (req, res) => {
     if (!booking?.id || !booking?.bay || !booking?.startISO || !booking?.endISO) {
       return res.status(400).json({ error: "missing required fields" });
     }
-
-    const calendarId = calendarForBay(booking.bay);
-    const appointmentId = String(booking.id);
-
-    const existing = await getMapping(appointmentId);
-
-    // Cancel flow
-    if (String(booking.status).toUpperCase() === "CANCELED") {
-      if (existing?.eventId) {
-        await deleteEvent(existing.calendarId, existing.eventId);
-      }
-      await deleteMapping(appointmentId);
-      return res.json({ ok: true, action: "cancel", appointmentId });
-    }
-
-    // Create or update
-    const eventBody = toEvent(booking, timeZone);
-
-    if (!existing?.eventId) {
-      const created = await createEvent(calendarId, eventBody);
-      await setMapping(appointmentId, {
-        calendarId,
-        eventId: created.id
-      });
-      return res.json({ ok: true, action: "create", appointmentId, eventId: created.id });
-    } else {
-      // If bay changed, you can choose to move events; for MVP we’ll just patch in place
-      const updated = await patchEvent(existing.calendarId, existing.eventId, eventBody);
-      await setMapping(appointmentId, {
-        calendarId: existing.calendarId,
-        eventId: existing.eventId
-      });
-      return res.json({ ok: true, action: "update", appointmentId, eventId: updated.id });
-    }
+    const result = await syncBooking(booking);
+    return res.json({ ok: true, ...result });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "server_error", detail: String(err.message || err) });
   }
 });
 
-app.listen(port, () => console.log(`calendar-sync listening on ${port}`));
+app.listen(port, () => {
+  console.log(`calendar-sync listening on ${port}`);
+  const { startPoller } = require("./poller");
+  startPoller(syncBooking);
+});
