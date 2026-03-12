@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 struct HomeTabView: View {
     @StateObject private var viewModel = HomeViewModel()
@@ -53,7 +54,8 @@ struct HomeTabView: View {
                         RewardsCard()
 
                         if viewModel.hasActiveAppointment {
-                            OpenDoorButton { viewModel.openDoor() }
+                            let bay = viewModel.activeBayNumber
+                            OpenDoorButton(bayId: bay) { viewModel.openDoor(bayId: bay) }
                         }
 
                         QuickBookCard { showNewBooking = true }
@@ -183,11 +185,11 @@ struct RewardsCard: View {
     }
 }
 
-//Open Door Button (Placeholder)
 struct OpenDoorButton: View {
+    let bayId: Int
     let action: () -> Void
     @State private var isPressed = false
-    
+
     var body: some View {
         Button {
             isPressed = true
@@ -199,8 +201,8 @@ struct OpenDoorButton: View {
             HStack {
                 Image(systemName: isPressed ? "door.left.hand.open" : "door.left.hand.closed")
                     .font(.title2)
-                
-                Text(isPressed ? "Opening..." : "Open Door")
+
+                Text(isPressed ? "Opening..." : "Open Bay \(bayId) Door")
                     .font(.headline.bold())
             }
             .foregroundStyle(.black)
@@ -481,16 +483,26 @@ struct InVenueControlButton: View {
     }
 }
 
-//ome ViewModel
 @MainActor
-class HomeViewModel: ObservableObject {
+class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var customerName: String?
     @Published var upcomingAppointments: [Appointment] = []
     @Published var isLoading = false
-    @Published var hasActiveAppointment = false  // For in-venue features
-    
+    @Published var hasActiveAppointment = false
+    @Published var isNearVenue = false
+
     private let client = UScheduleClient()
     private var authToken: String?
+
+    private let locationManager = CLLocationManager()
+    private let venueLocation   = CLLocation(latitude: 33.3954, longitude: -111.9256)
+    private let geofenceRadius: CLLocationDistance = 150  // meters
+
+    override init() {
+        super.init()
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+    }
     
     var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -543,9 +555,9 @@ class HomeViewModel: ObservableObject {
                     return aTime < bTime
                 }
             
-            // Check if there's an active appointment (for in-venue features)
-            // TODO: Add geofencing check
-            self.hasActiveAppointment = checkForActiveAppointment(appointments)
+            // Trigger location check — delegate will set hasActiveAppointment
+            locationManager.requestWhenInUseAuthorization()
+            locationManager.requestLocation()
             
             if !Task.isCancelled {
                 isLoading = false
@@ -591,9 +603,58 @@ class HomeViewModel: ObservableObject {
         return false
     }
     
-    func openDoor() {
-        // TODO: Implement door control via environment management API
-        print("Opening door...")
+    // MARK: - CLLocationManagerDelegate
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let loc = locations.last else { return }
+        let distance = loc.distance(from: venueLocation)
+        Task { @MainActor in
+            self.isNearVenue = distance <= geofenceRadius
+            self.hasActiveAppointment = self.isNearVenue && self.checkForActiveAppointment(self.upcomingAppointments)
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // Location unavailable (simulator / permission denied) — fall back to time-only check
+        Task { @MainActor in
+            self.hasActiveAppointment = self.checkForActiveAppointment(self.upcomingAppointments)
+        }
+    }
+
+    // MARK: - Bay detection
+
+    var activeBayNumber: Int {
+        let now = Date()
+        for appt in upcomingAppointments {
+            guard let startStr = appt.StartTime,
+                  let startTime = UScheduleClient.parseAPIDate(startStr),
+                  appt.StatusID == 1 else { continue }
+            let endTime: Date
+            if let endStr = appt.EndTime, let end = UScheduleClient.parseAPIDate(endStr) {
+                endTime = end
+            } else {
+                endTime = startTime.addingTimeInterval(3600)
+            }
+            let bufferStart = startTime.addingTimeInterval(-15 * 60)
+            if now >= bufferStart && now <= endTime {
+                if appt.ResourceUnitID == HAConfig.bay1ResourceUnitId { return 1 }
+                return 2
+            }
+        }
+        return 1
+    }
+
+    // MARK: - Door control
+
+    func openDoor(bayId: Int) {
+        let entity = bayId == 1 ? HAConfig.bay1Entity : HAConfig.bay2Entity
+        guard let url = URL(string: "\(HAConfig.baseURL)/api/services/\(HAConfig.haService)") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(HAConfig.token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["entity_id": entity])
+        URLSession.shared.dataTask(with: req).resume()
     }
 }
 
