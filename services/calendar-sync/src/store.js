@@ -23,4 +23,33 @@ async function deleteMapping(appointmentId) {
   await docRef(appointmentId).delete();
 }
 
-module.exports = { getMapping, setMapping, deleteMapping };
+// ---- Appointment snapshots (change detection for poller) ----
+
+const SNAPSHOT = process.env.SNAPSHOT_COLLECTION || "appointmentSnapshots";
+
+function snapRef(appointmentId) {
+  return db.collection(SNAPSHOT).doc(String(appointmentId));
+}
+
+async function getSnapshot(appointmentId) {
+  const snap = await snapRef(appointmentId).get();
+  return snap.exists ? snap.data() : null;
+}
+
+async function setSnapshot(appointmentId, data) {
+  await snapRef(appointmentId).set(
+    { ...data, snapshotUpdatedAt: new Date().toISOString() },
+    { merge: true }
+  );
+}
+
+async function deleteSnapshot(appointmentId) {
+  await snapRef(appointmentId).delete();
+}
+
+async function listSnapshotIds() {
+  const result = await db.collection(SNAPSHOT).select().get();
+  return result.docs.map((d) => d.id);
+}
+
+module.exports = { getMapping, setMapping, deleteMapping, getSnapshot, setSnapshot, deleteSnapshot, listSnapshotIds };
