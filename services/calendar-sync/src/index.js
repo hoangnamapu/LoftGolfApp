@@ -44,6 +44,13 @@ async function syncBooking(booking) {
     const created = await createEvent(calendarId, eventBody);
     await setMapping(appointmentId, { calendarId, eventId: created.id });
     return { action: "create", appointmentId, eventId: created.id };
+  } else if (existing.calendarId !== calendarId) {
+    // Bay changed — delete the event from the old calendar and create in the new one
+    await deleteEvent(existing.calendarId, existing.eventId);
+    const created = await createEvent(calendarId, eventBody);
+    await setMapping(appointmentId, { calendarId, eventId: created.id });
+    console.log(`[sync] appointment ${appointmentId} moved from calendar ${existing.calendarId} to ${calendarId}`);
+    return { action: "move", appointmentId, eventId: created.id };
   } else {
     const updated = await patchEvent(existing.calendarId, existing.eventId, eventBody);
     await setMapping(appointmentId, { calendarId: existing.calendarId, eventId: existing.eventId });
