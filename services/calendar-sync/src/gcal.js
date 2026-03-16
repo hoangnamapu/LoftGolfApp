@@ -13,7 +13,7 @@ function toEvent(booking, timeZone) {
   const appointmentId = String(booking.id);
 
   return {
-    summary: `Loft Booking - ${booking.customerName || "Customer"}`,
+    summary: `${booking.customerName || "Customer"}`,
     description: [
       `Loft-managed booking`,
       `uSchedule appointmentId: ${appointmentId}`,
