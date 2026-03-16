@@ -100,7 +100,7 @@ struct HomeTabView: View {
             }
 
             .frame(maxWidth: .infinity)
-            .frame(minHeight: UIScreen.main.bounds.height, alignment: .top )
+            .frame(minHeight: UIScreen.main.bounds.height, alignment: .top)
             .navigationBarHidden(true)
             .refreshable {
                 await viewModel.loadData()
@@ -127,26 +127,25 @@ struct HomeTabView: View {
 struct WelcomeHeader: View {
     let greeting: String
     let customerName: String
-    
+
     var body: some View {
         HStack {
-            // Logo from Assets
             Image("image2")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 60, height: 70)
                 .clipShape(Circle())
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(greeting)
                     .font(.subheadline)
                     .foregroundStyle(.gray)
-                
+
                 Text(customerName)
                     .font(.title2.bold())
                     .foregroundStyle(.white)
             }
-            
+
             Spacer()
         }
         .padding(.vertical, 13)
@@ -278,19 +277,18 @@ struct OpenDoorButton: View {
 //Quick Book Card
 struct QuickBookCard: View {
     let onBookTap: () -> Void
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Book Now")
                 .font(.system(size: 25, weight: .semibold))
                 .foregroundStyle(.white)
-            
-            // Reserve button
+
             Button(action: onBookTap) {
                 HStack {
                     Image(systemName: "figure.golf")
                         .font(.title2)
-                    
+
                     Text("Reserve Simulator")
                         .font(.system(size: 18, weight: .semibold))
                 }
@@ -317,12 +315,12 @@ struct ServiceTypeButton: View {
     let title: String
     var isSelected: Bool = false
     var isDisabled: Bool = false
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
-            
+
             Text(title)
                 .font(.caption.weight(.medium))
         }
@@ -340,16 +338,16 @@ struct UpcomingAppointmentsSection: View {
     let appointments: [Appointment]
     let isLoading: Bool
     let authToken: String?
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Upcoming")
                     .font(.system(size: 25, weight: .semibold))
                     .foregroundStyle(.white)
-                
+
                 Spacer()
-                
+
                 if !appointments.isEmpty {
                     NavigationLink {
                         BookingsTabView(authToken: authToken)
@@ -360,7 +358,7 @@ struct UpcomingAppointmentsSection: View {
                     }
                 }
             }
-            
+
             if isLoading {
                 HStack {
                     Spacer()
@@ -370,12 +368,11 @@ struct UpcomingAppointmentsSection: View {
                 }
                 .padding(.vertical, 30)
             } else if appointments.isEmpty {
-                // Empty state
                 VStack(spacing: 12) {
                     Image(systemName: "calendar.badge.plus")
                         .font(.system(size: 60))
                         .foregroundStyle(.green)
-                    
+
                     Text("No upcoming reservations")
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.white)
@@ -383,7 +380,6 @@ struct UpcomingAppointmentsSection: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 30)
             } else {
-                // Appointment cards
                 ForEach(appointments.prefix(3)) { appointment in
                     UpcomingAppointmentCard(appointment: appointment)
                 }
@@ -402,15 +398,14 @@ struct UpcomingAppointmentsSection: View {
 //Upcoming Appointment Card
 struct UpcomingAppointmentCard: View {
     let appointment: Appointment
-    
+
     var body: some View {
         HStack(spacing: 16) {
-            // Date badge
             VStack(spacing: 2) {
                 Text(monthString)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.green)
-                
+
                 Text(dayString)
                     .font(.title2.bold())
                     .foregroundStyle(.white)
@@ -419,13 +414,12 @@ struct UpcomingAppointmentCard: View {
             .padding(.vertical, 8)
             .background(Color(.systemGray6).opacity(0.5))
             .cornerRadius(8)
-            
-            // Details
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(appointment.Description ?? "Simulator Rental")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
-                
+
                 HStack {
                     Image(systemName: "clock")
                         .font(.caption)
@@ -434,9 +428,9 @@ struct UpcomingAppointmentCard: View {
                 }
                 .foregroundStyle(.gray)
             }
-            
+
             Spacer()
-            
+
             Image(systemName: "chevron.right")
                 .foregroundStyle(.gray)
         }
@@ -444,7 +438,7 @@ struct UpcomingAppointmentCard: View {
         .background(Color(.systemGray6).opacity(0.3))
         .cornerRadius(12)
     }
-    
+
     private var monthString: String {
         guard let startTime = appointment.StartTime,
               let date = UScheduleClient.parseAPIDate(startTime) else {
@@ -454,7 +448,7 @@ struct UpcomingAppointmentCard: View {
         formatter.dateFormat = "MMM"
         return formatter.string(from: date).uppercased()
     }
-    
+
     private var dayString: String {
         guard let startTime = appointment.StartTime,
               let date = UScheduleClient.parseAPIDate(startTime) else {
@@ -464,7 +458,7 @@ struct UpcomingAppointmentCard: View {
         formatter.dateFormat = "d"
         return formatter.string(from: date)
     }
-    
+
     private var timeString: String {
         guard let startTime = appointment.StartTime,
               let date = UScheduleClient.parseAPIDate(startTime) else {
@@ -476,20 +470,20 @@ struct UpcomingAppointmentCard: View {
     }
 }
 
-//In-Venue Controls Card (Placeholder)
+//In-Venue Controls Card
 struct InVenueControlsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "slider.horizontal.3")
                     .foregroundStyle(.green)
-                
+
                 Text("Bay Controls")
                     .font(.headline)
                     .foregroundStyle(.white)
-                
+
                 Spacer()
-                
+
                 Text("In-Venue")
                     .font(.caption)
                     .foregroundStyle(.green)
@@ -498,15 +492,14 @@ struct InVenueControlsCard: View {
                     .background(Color.green.opacity(0.2))
                     .cornerRadius(4)
             }
-            
-            // Control buttons
+
             HStack(spacing: 12) {
                 InVenueControlButton(icon: "lightbulb.fill", title: "Lights")
                 InVenueControlButton(icon: "thermometer.medium", title: "Climate")
                 InVenueControlButton(icon: "tv.fill", title: "TV")
                 InVenueControlButton(icon: "plus.circle.fill", title: "Extend")
             }
-            
+
             Text("Controls available during your appointment")
                 .font(.caption)
                 .foregroundStyle(.gray)
@@ -525,13 +518,13 @@ struct InVenueControlsCard: View {
 struct InVenueControlButton: View {
     let icon: String
     let title: String
-    
+
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.title3)
                 .foregroundStyle(.white)
-            
+
             Text(title)
                 .font(.caption2)
                 .foregroundStyle(.gray)
@@ -563,7 +556,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
     }
-    
+
     var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
@@ -572,34 +565,30 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         default: return "Good evening"
         }
     }
-    
+
     func setAuthToken(_ token: String) {
         self.authToken = token
     }
-    
+
     func loadData() async {
         guard let token = authToken else { return }
-        
+
         isLoading = true
-        
+
         do {
-            // Load customer info
             if Task.isCancelled { return }
             let customer = try await client.customer(authToken: token)
             self.customerName = customer.FirstName
-            
-            // Load appointments
+
             if Task.isCancelled { return }
             let appointments = try await client.appointments(authToken: token)
-            
-            // Filter upcoming appointments (future + active status)
+
             self.upcomingAppointments = appointments
                 .filter { appointment in
                     guard let startTimeStr = appointment.StartTime,
                           let startTime = UScheduleClient.parseAPIDate(startTimeStr) else {
                         return false
                     }
-                    // Include appointments that are happening now or in the future
                     let now = Date()
                     if let endStr = appointment.EndTime,
                        let endTime = UScheduleClient.parseAPIDate(endStr) {
@@ -614,11 +603,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                     }
                     return aTime < bTime
                 }
-            
+
             // Trigger location check — delegate will set hasActiveAppointment
             locationManager.requestWhenInUseAuthorization()
             locationManager.requestLocation()
-            
+
             if !Task.isCancelled {
                 isLoading = false
             }
@@ -629,40 +618,35 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
     }
-    
-    //Check if user has an appointment happening right now
+
     private func checkForActiveAppointment(_ appointments: [Appointment]) -> Bool {
         let now = Date()
-        
+
         for appointment in appointments {
             guard let startTimeStr = appointment.StartTime,
                   let startTime = UScheduleClient.parseAPIDate(startTimeStr),
                   appointment.StatusID == 1 else {
                 continue
             }
-            
-            //Try to get end time from EndTime field, or calculate from duration
+
             var endTime: Date
             if let endStr = appointment.EndTime,
                let end = UScheduleClient.parseAPIDate(endStr) {
                 endTime = end
             } else {
-                // Default to 1 hour if no end time
                 endTime = startTime.addingTimeInterval(60 * 60)
             }
-            
-            // Check if now is within the appointment window
-            // Add 15 min buffer before start for early arrival
+
             let bufferStart = startTime.addingTimeInterval(-15 * 60)
-            
+
             if now >= bufferStart && now <= endTime {
                 return true
             }
         }
-        
+
         return false
     }
-    
+
     // MARK: - CLLocationManagerDelegate
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
