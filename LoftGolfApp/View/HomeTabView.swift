@@ -11,13 +11,35 @@ import CoreLocation
 struct HomeTabView: View {
     @StateObject private var viewModel = HomeViewModel()
     @State private var showNewBooking = false
-    
+    @State private var freeHours: Int = 0
+    @State private var prepaidCards: [USPrepayServiceCustomer] = []
     let authToken: String?
-    
+
     init(authToken: String? = nil) {
         self.authToken = authToken
     }
-    
+
+    private func loadPrepaidCards() {
+        guard let token = authToken else {
+            print("❌ HomeTabView: authToken is nil")
+            return
+        }
+
+        PrepaidCreditsService.fetchPrepaidCards(authToken: token) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let cards):
+                    self.prepaidCards = cards.filter { $0.RemainingUnits > 0 }
+                    self.freeHours = self.prepaidCards.reduce(0) { $0 + $1.RemainingUnits }
+                case .failure(let err):
+                    print("❌ Prepaid cards error:", err)
+                    self.prepaidCards = []
+                    self.freeHours = 0
+                }
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -51,7 +73,7 @@ struct HomeTabView: View {
                             customerName: viewModel.customerName ?? "Golfer"
                         )
 
-                        RewardsCard()
+                        PrepaidCardsSection(cards: prepaidCards)
 
                         if viewModel.hasActiveAppointment {
                             let bay = viewModel.activeBayNumber
@@ -86,6 +108,7 @@ struct HomeTabView: View {
             .task {
                 if let token = authToken {
                     viewModel.setAuthToken(token)
+                    loadPrepaidCards()
                 }
                 await viewModel.loadData()
             }
@@ -130,50 +153,87 @@ struct WelcomeHeader: View {
     }
 }
 
-//Rewards Card (Placeholder)
 struct RewardsCard: View {
+    let freeHours: Int
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "gift.fill")
                     .foregroundStyle(.green)
-                
-                Text("Loft Golf Rewards")
+
+                Text("Loft Golf Credits")
                     .font(.system(size: 25, weight: .semibold))
                     .foregroundStyle(.white)
-                
+
                 Spacer()
-                
-                Button {
-                    // Info action
-                } label: {
-                    Image(systemName: "questionmark.circle")
-                        .foregroundStyle(.white)
-                }
             }
-            
-            Text("0")
+
+            Text("\(freeHours)")
                 .font(.system(size: 48, weight: .bold))
                 .foregroundStyle(.green)
-            
+
             Divider()
                 .background(Color.gray.opacity(0.3))
-            
+
             HStack {
-                Text("Points")
+                Text("Free Hours")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.gray)
-                
+
                 Spacer()
-                
-                Text("Coming Soon")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(4)
             }
+        }
+        .padding()
+        .background(Color(.systemGray6).opacity(0.15))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+        )
+    }
+}
+
+struct PrepaidCardsSection: View {
+    let cards: [USPrepayServiceCustomer]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(cards, id: \.Id) { card in
+                PrepaidCardRow(card: card)
+            }
+        }
+    }
+}
+
+struct PrepaidCardRow: View {
+    let card: USPrepayServiceCustomer
+
+    private var title: String {
+        if let name = card.UnitName, !name.isEmpty { return name }
+        return "Prepaid Credit"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "gift.fill")
+                    .foregroundStyle(.green)
+
+                Text(title)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+
+                Spacer()
+            }
+
+            Text("\(card.RemainingUnits)")
+                .font(.system(size: 40, weight: .bold))
+                .foregroundStyle(.green)
+
+            Text("Hours left")
+                .font(.subheadline)
+                .foregroundStyle(.gray)
         }
         .padding()
         .background(Color(.systemGray6).opacity(0.15))
