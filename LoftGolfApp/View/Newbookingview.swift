@@ -525,7 +525,6 @@ struct SelectDateTimeView: View {
 //Step 5: Confirmation
 struct ConfirmBookingView: View {
     @ObservedObject var viewModel: BookingViewModel
-    @State private var showCardForm = false
 
     var body: some View {
         ScrollView {
@@ -570,7 +569,7 @@ struct ConfirmBookingView: View {
                     // Pay at Location option
                     Button {
                         viewModel.selectedPaymentType = .payAtLocation
-                        viewModel.cardFormData = nil
+                        viewModel.selectedPrepaidCard = nil
                     } label: {
                         HStack {
                             Image(systemName: viewModel.selectedPaymentType == .payAtLocation
@@ -588,43 +587,35 @@ struct ConfirmBookingView: View {
                     }
                     .buttonStyle(.plain)
 
-                    // Credit Card option
-                    Button {
-                        viewModel.selectedPaymentType = .payWithCreditCard
-                        if viewModel.cardFormData == nil {
-                            showCardForm = true
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: viewModel.selectedPaymentType == .payWithCreditCard
-                                  ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(viewModel.selectedPaymentType == .payWithCreditCard ? .green : .secondary)
-                            Image(systemName: "creditcard")
-                                .foregroundStyle(.secondary)
-                            if let card = viewModel.cardFormData {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Credit Card")
-                                        .foregroundStyle(.primary)
-                                    Text("···· \(card.number.suffix(4))")
-                                        .font(.caption)
+                    // Prepaid Credits option — only shown if customer has active prepaid cards
+                    if !viewModel.prepaidCards.isEmpty {
+                        ForEach(viewModel.prepaidCards) { card in
+                            Button {
+                                viewModel.selectedPaymentType = .payWithPrepayService
+                                viewModel.selectedPrepaidCard = card
+                            } label: {
+                                HStack {
+                                    Image(systemName: viewModel.selectedPrepaidCard?.Id == card.Id
+                                          ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(viewModel.selectedPrepaidCard?.Id == card.Id ? .green : .secondary)
+                                    Image(systemName: "ticket")
                                         .foregroundStyle(.secondary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Prepaid Credits")
+                                            .foregroundStyle(.primary)
+                                        Text("\(card.RemainingUnits ?? 0) \(card.UnitName ?? "unit(s)") remaining")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
                                 }
-                            } else {
-                                Text("Credit Card")
-                                    .foregroundStyle(.primary)
+                                .padding()
+                                .background(Color(.systemBackground))
+                                .cornerRadius(12)
                             }
-                            Spacer()
-                            if viewModel.selectedPaymentType == .payWithCreditCard {
-                                Button("Edit") { showCardForm = true }
-                                    .font(.subheadline)
-                                    .foregroundStyle(.blue)
-                            }
+                            .buttonStyle(.plain)
                         }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(12)
                     }
-                    .buttonStyle(.plain)
                 }
 
                 // Notes
@@ -643,10 +634,8 @@ struct ConfirmBookingView: View {
             }
             .padding()
         }
-        .sheet(isPresented: $showCardForm) {
-            PaymentCardFormView(initial: viewModel.cardFormData) { saved in
-                viewModel.cardFormData = saved
-            }
+        .task {
+            await viewModel.loadPrepaidCards()
         }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 12) {
