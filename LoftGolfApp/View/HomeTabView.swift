@@ -692,8 +692,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Door control
 
     func openDoor(bayId: Int) {
-        let entryId = bayId == 1 ? DoorConfig.bay1EntryId : DoorConfig.bay2EntryId
-        let urlStr = "https://api.openpath.com/api/v1/orgs/\(DoorConfig.orgId)/entries/\(entryId)/remoteUnlocks"
+        let urlStr = "https://api.openpath.com/api/v1/orgs/\(DoorConfig.orgId)/entries/\(DoorConfig.entryId)/remoteUnlocks"
         guard let url = URL(string: urlStr) else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
