@@ -61,7 +61,8 @@ struct BookingModel: Codable {
     let StartTime: String        // local ISO
     let ServiceLength: Int?
     let Notes: String?
-    let PaymentType: Int?        // 1=PayAtLocation
+    let PaymentType: Int?        // 1=PayAtLocation, 2=PayWithCreditCard
+    let PaymentCard: UScheduleCreditCard?
     let PrepayServiceCustomerID: Int?
 }
 
@@ -431,8 +432,8 @@ final class UScheduleClient {
     }
         
     func cancelAppointment(authToken: String, id: Int) async throws -> String {
-        struct IdModel: Codable { let id: Int }
-        let req = request("cancelappointment", authToken: authToken, httpMethod: "POST", body: try enc.encode(IdModel(id: id)))
+        struct IdModel: Codable { let Id: Int }
+        let req = request("cancelappointment", authToken: authToken, httpMethod: "POST", body: try enc.encode(IdModel(Id: id)))
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else { throw USError.unknown }
             
