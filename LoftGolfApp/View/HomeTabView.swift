@@ -682,7 +682,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
             let bufferStart = startTime.addingTimeInterval(-15 * 60)
             if now >= bufferStart && now <= endTime {
-                if appt.ResourceUnitID == HAConfig.bay1ResourceUnitId { return 1 }
+                if appt.ResourceUnitID == DoorConfig.bay1ResourceUnitId { return 1 }
                 return 2
             }
         }
@@ -692,13 +692,13 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Door control
 
     func openDoor(bayId: Int) {
-        let entity = bayId == 1 ? HAConfig.bay1Entity : HAConfig.bay2Entity
-        guard let url = URL(string: "\(HAConfig.baseURL)/api/services/\(HAConfig.haService)") else { return }
+        let entryId = bayId == 1 ? DoorConfig.bay1EntryId : DoorConfig.bay2EntryId
+        let urlStr = "https://api.openpath.com/api/v1/orgs/\(DoorConfig.orgId)/entries/\(entryId)/remoteUnlocks"
+        guard let url = URL(string: urlStr) else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        req.setValue("Bearer \(HAConfig.token)", forHTTPHeaderField: "Authorization")
+        req.setValue("Bearer \(DoorConfig.token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try? JSONSerialization.data(withJSONObject: ["entity_id": entity])
         URLSession.shared.dataTask(with: req).resume()
     }
 }
