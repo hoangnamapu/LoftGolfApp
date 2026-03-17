@@ -525,7 +525,8 @@ struct SelectDateTimeView: View {
 //Step 5: Confirmation
 struct ConfirmBookingView: View {
     @ObservedObject var viewModel: BookingViewModel
-    
+    @State private var showCardForm = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -533,21 +534,21 @@ struct ConfirmBookingView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Reservation Summary")
                         .font(.headline)
-                    
+
                     Divider()
-                    
+
                     SummaryRow(label: "Service", value: viewModel.selectedService?.Description ?? "—")
                     SummaryRow(label: "Date", value: formatDate(viewModel.selectedDate))
                     SummaryRow(label: "Time", value: formatTimeSlot(viewModel.selectedTimeSlot, duration: viewModel.selectedDuration))
                     SummaryRow(label: "Duration", value: viewModel.formatDuration(viewModel.selectedDuration))
                     SummaryRow(label: "Guests", value: "\(viewModel.groupSize)")
-                    
+
                     if let unit = viewModel.selectedResourceUnit {
                         SummaryRow(label: "Bay", value: unit.NickName ?? unit.Description)
                     }
-                    
+
                     Divider()
-                    
+
                     HStack {
                         Text("Total")
                             .font(.headline)
@@ -560,39 +561,92 @@ struct ConfirmBookingView: View {
                 .padding()
                 .background(Color(.systemBackground))
                 .cornerRadius(16)
-                
+
                 // Notes
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Notes (Optional)")
                         .font(.headline)
-                    
+
                     TextField("Any special requests?", text: $viewModel.notes, axis: .vertical)
                         .lineLimit(3...6)
                         .padding()
                         .background(Color(.systemBackground))
                         .cornerRadius(12)
                 }
-                
-                // Payment info
+
+                // Payment selection
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Payment")
                         .font(.headline)
-                    
-                    HStack {
-                        Image(systemName: "building.columns")
-                            .foregroundStyle(.secondary)
-                        Text("Pay at location")
-                            .foregroundStyle(.secondary)
+
+                    // Pay at Location option
+                    Button {
+                        viewModel.selectedPaymentType = .payAtLocation
+                        viewModel.cardFormData = nil
+                    } label: {
+                        HStack {
+                            Image(systemName: viewModel.selectedPaymentType == .payAtLocation
+                                  ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(viewModel.selectedPaymentType == .payAtLocation ? .green : .secondary)
+                            Image(systemName: "building.columns")
+                                .foregroundStyle(.secondary)
+                            Text("Pay at Location")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
+                    .buttonStyle(.plain)
+
+                    // Credit Card option
+                    Button {
+                        viewModel.selectedPaymentType = .payWithCreditCard
+                        if viewModel.cardFormData == nil {
+                            showCardForm = true
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: viewModel.selectedPaymentType == .payWithCreditCard
+                                  ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(viewModel.selectedPaymentType == .payWithCreditCard ? .green : .secondary)
+                            Image(systemName: "creditcard")
+                                .foregroundStyle(.secondary)
+                            if let card = viewModel.cardFormData {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Credit Card")
+                                        .foregroundStyle(.primary)
+                                    Text("···· \(card.number.suffix(4))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } else {
+                                Text("Credit Card")
+                                    .foregroundStyle(.primary)
+                            }
+                            Spacer()
+                            if viewModel.selectedPaymentType == .payWithCreditCard {
+                                Button("Edit") { showCardForm = true }
+                                    .font(.subheadline)
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                    }
+                    .buttonStyle(.plain)
                 }
-                
+
                 Spacer(minLength: 100)
             }
             .padding()
+        }
+        .sheet(isPresented: $showCardForm) {
+            PaymentCardFormView(initial: viewModel.cardFormData) { saved in
+                viewModel.cardFormData = saved
+            }
         }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 12) {
@@ -613,11 +667,11 @@ struct ConfirmBookingView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.green)
+                    .background(viewModel.isPaymentReady ? Color.green : Color.gray)
                     .cornerRadius(12)
                 }
-                .disabled(viewModel.isLoading)
-                
+                .disabled(viewModel.isLoading || !viewModel.isPaymentReady)
+
                 Button {
                     viewModel.previousStep()
                 } label: {
