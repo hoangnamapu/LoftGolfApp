@@ -562,18 +562,6 @@ struct ConfirmBookingView: View {
                 .background(Color(.systemBackground))
                 .cornerRadius(16)
 
-                // Notes
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Notes (Optional)")
-                        .font(.headline)
-
-                    TextField("Any special requests?", text: $viewModel.notes, axis: .vertical)
-                        .lineLimit(3...6)
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(12)
-                }
-
                 // Payment selection
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Payment")
@@ -637,6 +625,18 @@ struct ConfirmBookingView: View {
                         .cornerRadius(12)
                     }
                     .buttonStyle(.plain)
+                }
+
+                // Notes
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Notes (Optional)")
+                        .font(.headline)
+
+                    TextField("Any special requests?", text: $viewModel.notes, axis: .vertical)
+                        .lineLimit(3...6)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
                 }
 
                 Spacer(minLength: 100)
