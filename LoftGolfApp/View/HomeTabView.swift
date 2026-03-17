@@ -692,13 +692,51 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Door control
 
     func openDoor(bayId: Int) {
-        let urlStr = "https://api.openpath.com/api/v1/orgs/\(DoorConfig.orgId)/entries/\(DoorConfig.entryId)/remoteUnlocks"
-        guard let url = URL(string: urlStr) else { return }
+        Task {
+            do {
+                let jwt = try await fetchAvigilonJWT()
+                let urlStr = "https://api.openpath.com/api/v1/orgs/\(DoorConfig.orgId)/entries/\(DoorConfig.entryId)/remoteUnlocks"
+                guard let url = URL(string: urlStr) else { return }
+                var req = URLRequest(url: url)
+                req.httpMethod = "POST"
+                req.setValue(jwt, forHTTPHeaderField: "Authorization")
+                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                URLSession.shared.dataTask(with: req).resume()
+            } catch {
+                print("Door open failed: \(error)")
+            }
+        }
+    }
+
+    // Returns a valid Avigilon Alta JWT, re-logging in only when the cached token has expired
+    private func fetchAvigilonJWT() async throws -> String {
+        if AvigilonTokenCache.isValid, let cached = AvigilonTokenCache.jwt {
+            return cached
+        }
+
+        guard let url = URL(string: "https://api.openpath.com/auth/login") else {
+            throw URLError(.badURL)
+        }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        req.setValue("Bearer \(DoorConfig.token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        URLSession.shared.dataTask(with: req).resume()
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "email": DoorConfig.botEmail,
+            "password": DoorConfig.botPassword
+        ])
+
+        let (data, _) = try await URLSession.shared.data(for: req)
+        guard let json  = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let inner = json["data"] as? [String: Any],
+              let token = inner["token"] as? String else {
+            throw URLError(.badServerResponse)
+        }
+
+        AvigilonTokenCache.jwt = token
+        if let expiresAtStr = inner["expiresAt"] as? String {
+            AvigilonTokenCache.expiresAt = ISO8601DateFormatter().date(from: expiresAtStr)
+        }
+        return token
     }
 }
 
