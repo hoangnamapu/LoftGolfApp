@@ -57,7 +57,19 @@ final class BookingViewModel: ObservableObject {
     
     //Pricing
     @Published var estimatedPrice: Double?
-    
+
+    //Payment
+    @Published var selectedPaymentType: PaymentType = .payAtLocation
+    @Published var cardFormData: PaymentCardFormData? = nil
+
+    var isPaymentReady: Bool {
+        switch selectedPaymentType {
+        case .payAtLocation: return true
+        case .payWithCreditCard: return cardFormData != nil
+        default: return false
+        }
+    }
+
     //Booking Result
     @Published var bookingResult: AppointmentResultModel?
     @Published var showBookingSuccess = false
@@ -233,10 +245,11 @@ final class BookingViewModel: ObservableObject {
                 StartTime: startTime,
                 ServiceLength: selectedDuration,
                 Notes: nil,
-                PaymentType: PaymentType.payAtLocation.rawValue,
+                PaymentType: selectedPaymentType.rawValue,
+                PaymentCard: nil,
                 PrepayServiceCustomerID: nil
             )
-            
+
             let result = try await client.getPricing(authToken: token, booking: bookingModel)
             self.estimatedPrice = result.Price
         } catch {
@@ -261,6 +274,9 @@ final class BookingViewModel: ObservableObject {
         isLoading = true
         
         do {
+            let paymentCard = selectedPaymentType == .payWithCreditCard
+                ? cardFormData.map { UScheduleCreditCard(from: $0) }
+                : nil
             let bookingModel = BookingModel(
                 LocationID: location.Id,
                 ServiceID: service.Id,
@@ -271,7 +287,8 @@ final class BookingViewModel: ObservableObject {
                 StartTime: startTime,
                 ServiceLength: selectedDuration,
                 Notes: notes.isEmpty ? nil : notes,
-                PaymentType: PaymentType.payAtLocation.rawValue,
+                PaymentType: selectedPaymentType.rawValue,
+                PaymentCard: paymentCard,
                 PrepayServiceCustomerID: nil
             )
             
@@ -366,6 +383,8 @@ final class BookingViewModel: ObservableObject {
         estimatedPrice = nil
         bookingResult = nil
         availableSlots = []
+        selectedPaymentType = .payAtLocation
+        cardFormData = nil
     }
     
     //Bay Filtering based on Group Size
@@ -405,7 +424,7 @@ final class BookingViewModel: ObservableObject {
     }
     
     var canConfirm: Bool {
-        canProceedToDateTime && selectedTimeSlot != nil
+        canProceedToDateTime && selectedTimeSlot != nil && isPaymentReady
     }
     
     //Helpers

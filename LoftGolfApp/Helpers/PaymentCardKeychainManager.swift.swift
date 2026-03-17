@@ -165,12 +165,20 @@ class PaymentCardKeychainManager {
 // MARK: - USchedule API Credit Card Model
 
 struct UScheduleCreditCard: Codable {
-    let cardName: String        // CardName
-    let cardNumber: String      // CardNumber
-    let cardExpMonth: String    // CardExpMonth (as string)
-    let cardExpYear: String     // CardExpYear (4-digit year as string)
-    let cardSecurityCode: String // CardSecurityCode (CVV)
-    
+    let cardName: String
+    let cardNumber: String
+    let cardExpMonth: String
+    let cardExpYear: String
+    let cardSecurityCode: String
+
+    enum CodingKeys: String, CodingKey {
+        case cardName = "CardName"
+        case cardNumber = "CardNumber"
+        case cardExpMonth = "CardExpMonth"
+        case cardExpYear = "CardExpYear"
+        case cardSecurityCode = "CardSecurityCode"
+    }
+
     init(from card: PaymentCardFormData) {
         self.cardName = card.nameOnCard
         self.cardNumber = card.number
