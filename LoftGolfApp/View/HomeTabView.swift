@@ -660,9 +660,25 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Location unavailable (simulator / permission denied) — fall back to time-only check
+        // Location unavailable — require geofence, so hide the door button
         Task { @MainActor in
-            self.hasActiveAppointment = self.checkForActiveAppointment(self.upcomingAppointments)
+            self.isNearVenue = false
+            self.hasActiveAppointment = false
+        }
+    }
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .denied, .restricted:
+            // Permission denied — hide door button until location is granted
+            Task { @MainActor in
+                self.isNearVenue = false
+                self.hasActiveAppointment = false
+            }
+        case .authorizedWhenInUse, .authorizedAlways:
+            manager.requestLocation()
+        default:
+            break
         }
     }
 
