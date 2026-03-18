@@ -237,6 +237,8 @@ struct LoginView: View {
             Image(systemName: icon).foregroundStyle(.gray).font(.body)
             TextField(placeholder, text: text)
                 .font(.body)
+                .foregroundStyle(.black)
+                .tint(.black)
                 .keyboardType(keyboardType)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -255,10 +257,14 @@ struct LoginView: View {
             if show.wrappedValue {
                 TextField(placeholder, text: text)
                     .font(.body)
+                    .foregroundStyle(.black)
+                    .tint(.black)
                     .textInputAutocapitalization(.never)
             } else {
                 SecureField(placeholder, text: text)
                     .font(.body)
+                    .foregroundStyle(.black)
+                    .tint(.black)
                     .textInputAutocapitalization(.never)
             }
             Button { show.wrappedValue.toggle() } label: {
