@@ -59,16 +59,13 @@ final class BookingViewModel: ObservableObject {
     @Published var estimatedPrice: Double?
 
     //Payment
-    @Published var selectedPaymentType: PaymentType = .payAtLocation
+    @Published var selectedPaymentType: PaymentType = .payWithPrepayService
     @Published var prepaidCards: [PrepayServiceCustomerModel] = []
     @Published var selectedPrepaidCard: PrepayServiceCustomerModel? = nil
+    @Published var isLoadingPrepaidCards = false
 
     var isPaymentReady: Bool {
-        switch selectedPaymentType {
-        case .payAtLocation: return true
-        case .payWithPrepayService: return selectedPrepaidCard != nil
-        default: return false
-        }
+        selectedPaymentType == .payWithPrepayService && selectedPrepaidCard != nil
     }
 
     //Booking Result
@@ -157,12 +154,18 @@ final class BookingViewModel: ObservableObject {
     //Load prepaid service cards for the current customer
     func loadPrepaidCards() async {
         guard let token = authToken else { return }
+        isLoadingPrepaidCards = true
         do {
             let cards = try await client.prepayServiceCustomers(authToken: token)
             self.prepaidCards = cards.filter { ($0.RemainingUnits ?? 0) > 0 && $0.StatusID == 1 }
+            // Auto-select the first card if none is already selected
+            if selectedPrepaidCard == nil, let first = self.prepaidCards.first {
+                self.selectedPrepaidCard = first
+            }
         } catch {
             print("Failed to load prepaid cards: \(error)")
         }
+        isLoadingPrepaidCards = false
     }
 
     //Load available time slots for selected criteria
@@ -392,7 +395,7 @@ final class BookingViewModel: ObservableObject {
         estimatedPrice = nil
         bookingResult = nil
         availableSlots = []
-        selectedPaymentType = .payAtLocation
+        selectedPaymentType = .payWithPrepayService
         selectedPrepaidCard = nil
     }
     
@@ -433,7 +436,7 @@ final class BookingViewModel: ObservableObject {
     }
     
     var canConfirm: Bool {
-        canProceedToDateTime && selectedTimeSlot != nil && isPaymentReady
+        canProceedToDateTime && selectedTimeSlot != nil
     }
     
     //Helpers

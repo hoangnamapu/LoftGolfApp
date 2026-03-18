@@ -561,34 +561,55 @@ struct ConfirmBookingView: View {
                 .background(Color(.systemBackground))
                 .cornerRadius(16)
 
-                // Payment selection
+                // Payment — prepaid credits only
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Payment")
                         .font(.headline)
 
-                    // Pay at Location option
-                    Button {
-                        viewModel.selectedPaymentType = .payAtLocation
-                        viewModel.selectedPrepaidCard = nil
-                    } label: {
+                    if viewModel.isLoadingPrepaidCards {
+                        // Loading state
                         HStack {
-                            Image(systemName: viewModel.selectedPaymentType == .payAtLocation
-                                  ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(viewModel.selectedPaymentType == .payAtLocation ? .green : .secondary)
-                            Image(systemName: "building.columns")
+                            ProgressView()
+                            Text("Loading your credits...")
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                            Text("Pay at Location")
-                                .foregroundStyle(.primary)
-                            Spacer()
                         }
                         .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(.systemBackground))
                         .cornerRadius(12)
-                    }
-                    .buttonStyle(.plain)
 
-                    // Prepaid Credits option — only shown if customer has active prepaid cards
-                    if !viewModel.prepaidCards.isEmpty {
+                    } else if viewModel.prepaidCards.isEmpty {
+                        // No credits state
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("No Prepaid Credits")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    Text("A prepaid credit package is required to book a bay.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Link(destination: URL(string: "https://loftgolfstudios.com")!) {
+                                Text("Visit loftgolfstudios.com to purchase a package")
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                        .padding()
+                        .background(Color.orange.opacity(0.08))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                        )
+
+                    } else {
+                        // Credits available — show selectable card rows
                         ForEach(viewModel.prepaidCards) { card in
                             Button {
                                 viewModel.selectedPaymentType = .payWithPrepayService
@@ -603,7 +624,7 @@ struct ConfirmBookingView: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Prepaid Credits")
                                             .foregroundStyle(.primary)
-                                        Text("\(card.RemainingUnits ?? 0) \(card.UnitName ?? "unit(s)") remaining")
+                                        Text("\(card.RemainingUnits ?? 0) \(card.UnitName ?? "Hour(s)") remaining")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
