@@ -6,7 +6,7 @@ struct DoorConfig {
     // Create the user in the Avigilon Alta admin panel with Super Admin role + access to the entry
     static let orgId       = "32686"                       // Org ID from Avigilon Alta admin URL
     static let botEmail    = "appdoorentry@loftgolfstudios.com" // Bot user email
-    static let botPassword = "REDACTED"            // Bot user password
+    static let botPassword = Secrets.avigilonBotPassword   // Bot user password — defined in Secrets.swift (gitignored)
     static let entryId     = "444892"                      // Avigilon Alta entry ID for the entrance door
 
     // uSchedule ResourceUnitID for each bay (from /resourceunits endpoint)
