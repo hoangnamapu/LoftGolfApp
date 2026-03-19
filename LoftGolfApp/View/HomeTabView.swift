@@ -93,7 +93,7 @@ struct HomeTabView: View {
                             OpenDoorButton(bayId: bay) { viewModel.openDoor(bayId: bay) }
                         }
 
-                        QuickBookCard { showNewBooking = true }
+                        QuickBookCard { selectedTab = 2 }
 
                         UpcomingAppointmentsSection(
                             appointments: viewModel.upcomingAppointments,
@@ -124,13 +124,6 @@ struct HomeTabView: View {
                     loadPrepaidCards()
                 }
                 await viewModel.loadData()
-            }
-            .sheet(isPresented: $showNewBooking) {
-                NewBookingView(authToken: authToken) {
-                    Task {
-                        await viewModel.loadData()
-                    }
-                }
             }
         }
     }
