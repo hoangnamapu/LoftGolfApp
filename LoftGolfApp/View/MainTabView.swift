@@ -43,14 +43,17 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             // Tab 1: Home
-            HomeTabView(authToken: authToken)
+            HomeTabView(
+                authToken: authToken,
+                selectedTab: $selectedTab
+            )
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
                 .tag(0)
 
             // Tab 2: Rewards
-            RewardsTabView()
+            RewardsTabView(authToken: authToken)
                 .tabItem {
                     Label("Rewards", systemImage: "gift.fill")
                 }

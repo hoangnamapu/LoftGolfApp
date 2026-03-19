@@ -219,6 +219,7 @@ struct Customer: Codable, Identifiable {
     let ParentCustomerID: Int?
     let MembershipStart: String?
     let Phone: String?
+    let LoyaltyPointTotal: Int?
     
     var id: Int { Id }
     

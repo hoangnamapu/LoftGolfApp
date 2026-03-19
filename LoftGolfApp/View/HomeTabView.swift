@@ -8,13 +8,18 @@
 import SwiftUI
 
 struct HomeTabView: View {
-    @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var viewModel: HomeViewModel
     @State private var showNewBooking = false
     
     let authToken: String?
+    @Binding var selectedTab: Int
     
-    init(authToken: String? = nil) {
+    init(authToken: String? = nil,
+         selectedTab: Binding<Int>,
+         viewModel: HomeViewModel? = nil) {
         self.authToken = authToken
+        self._selectedTab = selectedTab
+        _viewModel = StateObject(wrappedValue: viewModel ?? HomeViewModel())
     }
     
     var body: some View {
@@ -50,7 +55,13 @@ struct HomeTabView: View {
                             customerName: viewModel.customerName ?? "Golfer"
                         )
 
-                        RewardsCard()
+                        RewardsCard(
+                            progressPoints: viewModel.currentProgressPoints,
+                            anytimeCredits: viewModel.anytimeCredits,
+                            onViewRewards: {
+                                selectedTab = 1
+                            }
+                        )
 
                         if viewModel.hasActiveAppointment {
                             OpenDoorButton { viewModel.openDoor() }
@@ -130,47 +141,49 @@ struct WelcomeHeader: View {
 
 //Rewards Card (Placeholder)
 struct RewardsCard: View {
+    let progressPoints: Int
+    let anytimeCredits: Int
+    let onViewRewards: () -> Void
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "gift.fill")
                     .foregroundStyle(.green)
-                
+
                 Text("Loft Golf Rewards")
                     .font(.system(size: 25, weight: .semibold))
                     .foregroundStyle(.white)
-                
+
                 Spacer()
-                
+
                 Button {
-                    // Info action
+                    onViewRewards()
                 } label: {
-                    Image(systemName: "questionmark.circle")
-                        .foregroundStyle(.white)
+                    Text("View Rewards")
+                        .font(.caption)
+                        .foregroundStyle(.gray)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(4)
                 }
+                .buttonStyle(.plain)
             }
-            
-            Text("0")
+
+            Text("\(progressPoints) pts")
                 .font(.system(size: 48, weight: .bold))
                 .foregroundStyle(.green)
-            
+
             Divider()
                 .background(Color.gray.opacity(0.3))
-            
+
             HStack {
-                Text("Points")
+                Text("\(anytimeCredits) credits")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.gray)
-                
+
                 Spacer()
-                
-                Text("Coming Soon")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(4)
             }
         }
         .padding()
@@ -487,6 +500,8 @@ class HomeViewModel: ObservableObject {
     @Published var customerName: String?
     @Published var upcomingAppointments: [Appointment] = []
     @Published var isLoading = false
+    @Published var currentProgressPoints = 0
+    @Published var anytimeCredits = 0
     @Published var hasActiveAppointment = false  // For in-venue features
     
     private let client = UScheduleClient()
@@ -515,6 +530,9 @@ class HomeViewModel: ObservableObject {
             if Task.isCancelled { return }
             let customer = try await client.customer(authToken: token)
             self.customerName = customer.FirstName
+            let loyaltyPoints = customer.LoyaltyPointTotal ?? 0
+            self.currentProgressPoints = loyaltyPoints % 50
+            self.anytimeCredits = loyaltyPoints / 50
             
             // Load appointments
             if Task.isCancelled { return }
@@ -597,6 +615,41 @@ class HomeViewModel: ObservableObject {
     }
 }
 
-#Preview {
-    HomeTabView(authToken: nil)
+// MARK: - Preview Helpers
+@MainActor
+func mockHomeVM(points: Int) -> HomeViewModel {
+    let vm = HomeViewModel()
+    
+    vm.customerName = "Mattias"
+    vm.currentProgressPoints = points % 50
+    vm.anytimeCredits = points / 50
+    
+    return vm
+}
+
+#Preview("0 Points") {
+    HomeTabView(
+        authToken: nil,
+        selectedTab: .constant(0),
+        viewModel: mockHomeVM(points: 0)
+    )
+    .preferredColorScheme(.dark)
+}
+
+#Preview("100 Points → 2 Credits") {
+    HomeTabView(
+        authToken: nil,
+        selectedTab: .constant(0),
+        viewModel: mockHomeVM(points: 100)
+    )
+    .preferredColorScheme(.dark)
+}
+
+#Preview("125 Points → Progress") {
+    HomeTabView(
+        authToken: nil,
+        selectedTab: .constant(0),
+        viewModel: mockHomeVM(points: 125)
+    )
+    .preferredColorScheme(.dark)
 }
