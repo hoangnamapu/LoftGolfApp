@@ -5,7 +5,6 @@ struct SignUpView: View {
     @Binding var authToken: String?
     @StateObject private var auth = AuthViewModel()
 
-    // --- Sign Up fields
     @State private var firstName = ""
     @State private var lastName  = ""
     @State private var email     = ""
@@ -17,77 +16,31 @@ struct SignUpView: View {
     @State private var showPassword = false
     @State private var showConfirmPassword = false
 
-    // UI state
     @State private var isBusy = false
     @State private var errorText: String?
-
-    // Waiver sheet
     @State private var showWaiverSheet = false
 
-    // For returning to Login (when SignUpView is presented modally)
     @Environment(\.dismiss) private var dismiss
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                Color(red: 0.10, green: 0.11, blue: 0.14).ignoresSafeArea()
-                LinearGradient(colors: [Color.white.opacity(0.06), .clear],
-                               startPoint: .top, endPoint: .center)
-                    .frame(height: 180)
-                    .allowsHitTesting(false)
-
+                background
                 ScrollView {
                     VStack(spacing: 16) {
-                        // Header
-                        VStack(spacing: 6) {
-                            Text("Create Your Account")
-                                .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                                .foregroundStyle(.white)
-                            Text("Fill in your details to get started.")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.85))
-                        }
-                        .padding(.top, 16)
-
-                        // Card
-                        VStack(spacing: 14) {
-                            signUpForm
-
-                            if let errorText {
-                                ErrorBanner(text: errorText)
-                            }
-
-                            PrimaryButton(title: isBusy ? nil : "Create Account", isLoading: isBusy) {
-                                Task { await handleSignUp() }
-                            }
-
-                            // Return to Login
-                            Button {
-                                dismiss()  // closes SignUpView if shown as a sheet/fullScreenCover
-                            } label: {
-                                Text("Already have an account? Log in")
-                                    .font(.footnote.weight(.medium))
-                                    .underline()
-                                    .foregroundStyle(.white.opacity(0.9))
-                            }
-                            .padding(.top, 4)
-                        }
-                        .padding(16)
-                        .background(RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.06)))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.12)))
-                        .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
-                        .padding(.horizontal)
-                        .padding(.bottom, 24)
+                        header
+                        formCard
                     }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-
-            .sheet(isPresented: $showWaiverSheet, onDismiss: completeSignUp) {
-                WaiverView()
+            .sheet(isPresented: $showWaiverSheet) {
+                WaiverView(onSigned: { signedName, signedAt in
+                    Task { await handleWaiverSigned(signedName: signedName, signedAt: signedAt) }
+                })
             }
-
-            // Clear field-specific errors when user edits
             .onChange(of: username) { _ in
                 if errorText?.localizedCaseInsensitiveContains("username") == true { errorText = nil }
             }
@@ -100,7 +53,58 @@ struct SignUpView: View {
         }
     }
 
-    // MARK: - Form
+    // MARK: - Subviews
+
+    private var background: some View {
+        ZStack {
+            Color(red: 0.10, green: 0.11, blue: 0.14).ignoresSafeArea()
+            LinearGradient(colors: [Color.white.opacity(0.06), .clear],
+                           startPoint: .top, endPoint: .center)
+                .frame(height: 180)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private var header: some View {
+        VStack(spacing: 6) {
+            Text("Create Your Account")
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .foregroundStyle(.white)
+            Text("Fill in your details to get started.")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.85))
+        }
+        .padding(.top, 16)
+    }
+
+    private var formCard: some View {
+        VStack(spacing: 14) {
+            signUpForm
+
+            if let errorText {
+                ErrorBanner(text: errorText)
+            }
+
+            PrimaryButton(title: isBusy ? nil : "Create Account", isLoading: isBusy) {
+                Task { await handleSignUp() }
+            }
+
+            Button { dismiss() } label: {
+                Text("Already have an account? Log in")
+                    .font(.footnote.weight(.medium))
+                    .underline()
+                    .foregroundStyle(.white.opacity(0.9))
+            }
+            .padding(.top, 4)
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.12)))
+        .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
+        .padding(.horizontal)
+        .padding(.bottom, 24)
+    }
+
     private var signUpForm: some View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
@@ -170,13 +174,8 @@ struct SignUpView: View {
     }
 
     // MARK: - Actions
-    private func completeSignUp() {
-        guard let token = auth.token else { return }
-        authToken = token
-        isAuthenticated = true
-        dismiss()
-    }
 
+    /// Step 1: Validate form + check username availability, then show waiver
     private func handleSignUp() async {
         guard !firstName.isEmpty,
               !lastName.isEmpty,
@@ -195,25 +194,48 @@ struct SignUpView: View {
         isBusy = true
         errorText = nil
 
+        let usernameTaken = await auth.userExists(
+            by: "username",
+            value: username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        )
+        if usernameTaken {
+            isBusy = false
+            errorText = "That username is already taken."
+            return
+        }
+
+        isBusy = false
+        showWaiverSheet = true
+    }
+
+    /// Step 2: Waiver signed → register with waiver data in reference fields
+    private func handleWaiverSigned(signedName: String, signedAt: String) async {
+        isBusy = true
+        errorText = nil
+
         do {
             try await auth.register(
                 fullName: "\(firstName) \(lastName)",
                 email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                 password: password,
                 phone: phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : phone,
-                userName: username.trimmingCharacters(in: .whitespacesAndNewlines)
+                userName: username.trimmingCharacters(in: .whitespacesAndNewlines),
+                reference1: "WAIVER_SIGNED",
+                reference2: signedAt,
+                reference3: signedName
             )
+
             isBusy = false
-            showWaiverSheet = true
+            authToken = auth.token
+            isAuthenticated = true
+            dismiss()
         } catch let err as USAuthError {
             isBusy = false
 
             let bodyLower: String
             switch err {
-            case .http(_, let sample):
-                bodyLower = sample.lowercased()
-            default:
-                bodyLower = err.localizedDescription.lowercased()
+            case .http(_, let sample): bodyLower = sample.lowercased()
+            default: bodyLower = err.localizedDescription.lowercased()
             }
 
             var parts: [String] = []
@@ -231,7 +253,7 @@ struct SignUpView: View {
             }
 
             errorText = parts.isEmpty
-                ? "We couldn’t create your account. Please check your details and try again."
+                ? "We couldn't create your account. Please check your details and try again."
                 : parts.joined(separator: " ")
         } catch {
             isBusy = false
@@ -240,7 +262,8 @@ struct SignUpView: View {
     }
 }
 
-// MARK: - Reusable UI (unchanged from your file)
+// MARK: - Reusable UI Components
+
 private struct FieldRow<Content: View, Trailing: View>: View {
     let icon: String
     let label: String
