@@ -650,7 +650,24 @@ struct ConfirmBookingView: View {
                         .background(Color(.systemBackground))
                         .cornerRadius(12)
                 }
-
+                
+                // Payment info
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Payment")
+                        .font(.headline)
+                    
+                    HStack {
+                        Image(systemName: "building.columns")
+                            .foregroundStyle(.secondary)
+                        Text("Pay at location")
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                }
+                
                 Spacer(minLength: 100)
             }
             .padding()

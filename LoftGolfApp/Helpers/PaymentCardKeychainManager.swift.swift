@@ -179,6 +179,7 @@ struct UScheduleCreditCard: Codable {
         case cardSecurityCode = "CardSecurityCode"
     }
 
+
     init(from card: PaymentCardFormData) {
         self.cardName = card.nameOnCard
         self.cardNumber = card.number

@@ -9,14 +9,19 @@ import SwiftUI
 import CoreLocation
 
 struct HomeTabView: View {
-    @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var viewModel: HomeViewModel
     @State private var showNewBooking = false
     @State private var freeHours: Int = 0
     @State private var prepaidCards: [USPrepayServiceCustomer] = []
     let authToken: String?
+    @Binding var selectedTab: Int
 
-    init(authToken: String? = nil) {
+    init(authToken: String? = nil,
+         selectedTab: Binding<Int> = .constant(0),
+         viewModel: HomeViewModel? = nil) {
         self.authToken = authToken
+        self._selectedTab = selectedTab
+        _viewModel = StateObject(wrappedValue: viewModel ?? HomeViewModel())
     }
 
     private func loadPrepaidCards() {
@@ -73,6 +78,14 @@ struct HomeTabView: View {
                             customerName: viewModel.customerName ?? "Golfer"
                         )
 
+                        RewardsCard(
+                            progressPoints: viewModel.currentProgressPoints,
+                            anytimeCredits: viewModel.anytimeCredits,
+                            onViewRewards: {
+                                selectedTab = 1
+                            }
+                        )
+
                         PrepaidCardsSection(cards: prepaidCards)
 
                         if viewModel.hasActiveAppointment {
@@ -119,7 +132,6 @@ struct HomeTabView: View {
                     }
                 }
             }
-            
         }
     }
 }
@@ -154,7 +166,9 @@ struct WelcomeHeader: View {
 }
 
 struct RewardsCard: View {
-    let freeHours: Int
+    let progressPoints: Int
+    let anytimeCredits: Int
+    let onViewRewards: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -162,14 +176,27 @@ struct RewardsCard: View {
                 Image(systemName: "gift.fill")
                     .foregroundStyle(.green)
 
-                Text("Loft Golf Credits")
+                Text("Loft Golf Rewards")
                     .font(.system(size: 25, weight: .semibold))
                     .foregroundStyle(.white)
 
                 Spacer()
+
+                Button {
+                    onViewRewards()
+                } label: {
+                    Text("View Rewards")
+                        .font(.caption)
+                        .foregroundStyle(.gray)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
             }
 
-            Text("\(freeHours)")
+            Text("\(progressPoints) pts")
                 .font(.system(size: 48, weight: .bold))
                 .foregroundStyle(.green)
 
@@ -177,7 +204,7 @@ struct RewardsCard: View {
                 .background(Color.gray.opacity(0.3))
 
             HStack {
-                Text("Free Hours")
+                Text("\(anytimeCredits) credits")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.gray)
 
@@ -544,6 +571,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var isLoading = false
     @Published var hasActiveAppointment = false
     @Published var isNearVenue = false
+    @Published var currentProgressPoints = 0
+    @Published var anytimeCredits = 0
 
     private let client = UScheduleClient()
     private var authToken: String?
@@ -580,6 +609,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             if Task.isCancelled { return }
             let customer = try await client.customer(authToken: token)
             self.customerName = customer.FirstName
+            let loyaltyPoints = customer.LoyaltyPointTotal ?? 0
+            self.currentProgressPoints = loyaltyPoints % 50
+            self.anytimeCredits = loyaltyPoints / 50
 
             if Task.isCancelled { return }
             let appointments = try await client.appointments(authToken: token)
@@ -756,6 +788,39 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-#Preview {
-    HomeTabView(authToken: nil)
+// MARK: - Preview Helpers
+@MainActor
+func mockHomeVM(points: Int) -> HomeViewModel {
+    let vm = HomeViewModel()
+    vm.customerName = "Mattias"
+    vm.currentProgressPoints = points % 50
+    vm.anytimeCredits = points / 50
+    return vm
+}
+
+#Preview("0 Points") {
+    HomeTabView(
+        authToken: nil,
+        selectedTab: .constant(0),
+        viewModel: mockHomeVM(points: 0)
+    )
+    .preferredColorScheme(.dark)
+}
+
+#Preview("100 Points → 2 Credits") {
+    HomeTabView(
+        authToken: nil,
+        selectedTab: .constant(0),
+        viewModel: mockHomeVM(points: 100)
+    )
+    .preferredColorScheme(.dark)
+}
+
+#Preview("125 Points → Progress") {
+    HomeTabView(
+        authToken: nil,
+        selectedTab: .constant(0),
+        viewModel: mockHomeVM(points: 125)
+    )
+    .preferredColorScheme(.dark)
 }
