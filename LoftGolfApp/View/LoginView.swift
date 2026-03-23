@@ -15,11 +15,13 @@ struct LoginView: View {
     // UI state
     @State private var isBusy = false
     @State private var errorText: String?
+    @State private var rememberMe = false
 
     // ➕ Sign Up presentation
     @State private var showSignUp = false
     @State private var showForgotPasscode = false
 
+    @AppStorage("biometricEnabled") private var biometricEnabled = false
     @StateObject private var auth = AuthViewModel()
 
     var body: some View {
@@ -65,9 +67,18 @@ struct LoginView: View {
                     }
                     .padding(.horizontal)
 
-                    // Forgot password
+                    // Remember Me + Forgot password row
                     HStack {
+                        Toggle(isOn: $rememberMe) {
+                            Text("Remember Me")
+                                .font(.footnote)
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                        .tint(.green)
+                        .fixedSize()
+
                         Spacer()
+
                         Button {
                             showForgotPasscode = true
                         } label: {
@@ -104,6 +115,30 @@ struct LoginView: View {
                             .foregroundColor(.red)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
+                    }
+
+                    // Biometric login button (shown only when credentials are saved)
+                    if biometricEnabled, let biometricName = BiometricHelper.biometricType {
+                        Button {
+                            Task { await biometricFlow() }
+                        } label: {
+                            Label(
+                                "Sign in with \(biometricName)",
+                                systemImage: biometricName == "Face ID" ? "faceid" : "touchid"
+                            )
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Color(.systemGray6).opacity(0.15))
+                            .cornerRadius(16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                            )
+                        }
+                        .disabled(isBusy)
+                        .padding(.horizontal)
                     }
 
                     // Divider
@@ -143,6 +178,12 @@ struct LoginView: View {
                 .padding(.horizontal, 18)
             }
             .ignoresSafeArea(.keyboard)
+            .onAppear {
+                if let saved = KeychainHelper.readString(key: "loft.savedUsername") {
+                    email = saved
+                    rememberMe = true
+                }
+            }
             .sheet(isPresented: $showForgotPasscode) {
                 NavigationStack {
                     WebView(url: URL(string: "https://clients.uschedule.com/loftgolfstudios/Account/PasswordReminder")!)
@@ -181,6 +222,15 @@ struct LoginView: View {
             try await auth.login(username: e, password: password)
             await MainActor.run {
                 isBusy = false
+                if rememberMe {
+                    KeychainHelper.saveString(e, key: "loft.savedUsername")
+                    KeychainHelper.saveString(password, key: "loft.savedPassword")
+                    biometricEnabled = true
+                } else {
+                    KeychainHelper.delete(key: "loft.savedUsername")
+                    KeychainHelper.delete(key: "loft.savedPassword")
+                    biometricEnabled = false
+                }
                 authToken = auth.token
                 isAuthenticated = true
             }
@@ -225,6 +275,21 @@ struct LoginView: View {
         } catch {
             await MainActor.run { isBusy = false; errorText = error.localizedDescription }
         }
+    }
+
+    private func biometricFlow() async {
+        let ok = await BiometricHelper.authenticate(reason: "Log in to Loft Golf")
+        guard ok,
+              let savedUser = KeychainHelper.readString(key: "loft.savedUsername"),
+              let savedPass = KeychainHelper.readString(key: "loft.savedPassword")
+        else { return }
+
+        await MainActor.run {
+            email = savedUser
+            password = savedPass
+            rememberMe = true
+        }
+        await signInFlow()
     }
 
     // MARK: - UI helpers
