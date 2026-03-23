@@ -10,7 +10,6 @@
 		BAB78B312E9B6B1C0059A7DE /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BAB78B302E9B6B1C0059A7DE /* FirebaseAuth */; };
 		BAB78B332E9B6B1C0059A7DE /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = BAB78B322E9B6B1C0059A7DE /* FirebaseFirestore */; };
 		BAB78B352E9C23A90059A7DE /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = BAB78B342E9C23A90059A7DE /* GoogleService-Info.plist */; };
-		D4BE2F282F6C725F00A37BC4 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4BE2F272F6C725E00A37BC4 /* Secrets.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,7 +47,6 @@
 		BABC71D42E99C23300DC35B9 /* LoftGolfApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LoftGolfApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BABC71E42E99C23400DC35B9 /* LoftGolfAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LoftGolfAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BABC71EE2E99C23400DC35B9 /* LoftGolfAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LoftGolfAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D4BE2F272F6C725E00A37BC4 /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -99,8 +97,7 @@
 		BABC71CB2E99C23300DC35B9 = {
 			isa = PBXGroup;
 			children = (
-				D4BE2F272F6C725E00A37BC4 /* Secrets.swift */,
-				BABC71D62E99C23300DC35B9 /* LoftGolfApp */,
+					BABC71D62E99C23300DC35B9 /* LoftGolfApp */,
 				BABC71E72E99C23400DC35B9 /* LoftGolfAppTests */,
 				BABC71F12E99C23400DC35B9 /* LoftGolfAppUITests */,
 				BAEF7E0C2E9A734700A2025E /* Frameworks */,
@@ -277,7 +274,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D4BE2F282F6C725F00A37BC4 /* Secrets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
