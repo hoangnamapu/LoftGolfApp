@@ -16,6 +16,7 @@ struct LoginView: View {
     @State private var isBusy = false
     @State private var errorText: String?
     @State private var rememberMe = false
+    @State private var enableBiometric = false
 
     // ➕ Sign Up presentation
     @State private var showSignUp = false
@@ -67,27 +68,52 @@ struct LoginView: View {
                     }
                     .padding(.horizontal)
 
-                    // Remember Me + Forgot password row
-                    HStack {
-                        Toggle(isOn: $rememberMe) {
-                            Text("Remember Me")
-                                .font(.footnote)
-                                .foregroundStyle(.white.opacity(0.9))
+                    // Remember Me + Face ID + Forgot password
+                    VStack(spacing: 8) {
+                        HStack {
+                            Toggle(isOn: $rememberMe) {
+                                Text("Remember Me")
+                                    .font(.footnote)
+                                    .foregroundStyle(.white.opacity(0.9))
+                            }
+                            .tint(.green)
+                            .fixedSize()
+                            .onChange(of: rememberMe) { _, on in
+                                if !on { enableBiometric = false }
+                            }
+
+                            Spacer()
+
+                            Button {
+                                showForgotPasscode = true
+                            } label: {
+                                Text("Forgot password?")
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(.white.opacity(0.95))
+                                    .underline()
+                            }
                         }
-                        .tint(.green)
-                        .fixedSize()
 
-                        Spacer()
-
-                        Button {
-                            showForgotPasscode = true
-                        } label: {
-                            Text("Forgot password?")
-                                .font(.footnote.weight(.medium))
-                                .foregroundStyle(.white.opacity(0.95))
-                                .underline()
+                        if rememberMe, BiometricHelper.isAvailable,
+                           let biometricName = BiometricHelper.biometricType {
+                            HStack {
+                                Image(systemName: biometricName == "Face ID" ? "faceid" : "touchid")
+                                    .foregroundStyle(.white.opacity(0.7))
+                                    .font(.footnote)
+                                Toggle(isOn: $enableBiometric) {
+                                    Text("Enable \(biometricName)")
+                                        .font(.footnote)
+                                        .foregroundStyle(.white.opacity(0.9))
+                                }
+                                .tint(.green)
+                                .fixedSize()
+                                Spacer()
+                            }
+                            .padding(.leading, 8)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
+                    .animation(.easeInOut(duration: 0.2), value: rememberMe)
                     .padding(.horizontal)
 
                     // Log In
@@ -182,6 +208,7 @@ struct LoginView: View {
                 if let saved = KeychainHelper.readString(key: "loft.savedUsername") {
                     email = saved
                     rememberMe = true
+                    enableBiometric = biometricEnabled
                 }
             }
             .sheet(isPresented: $showForgotPasscode) {
@@ -225,7 +252,7 @@ struct LoginView: View {
                 if rememberMe {
                     KeychainHelper.saveString(e, key: "loft.savedUsername")
                     KeychainHelper.saveString(password, key: "loft.savedPassword")
-                    biometricEnabled = true
+                    biometricEnabled = enableBiometric
                 } else {
                     KeychainHelper.delete(key: "loft.savedUsername")
                     KeychainHelper.delete(key: "loft.savedPassword")
