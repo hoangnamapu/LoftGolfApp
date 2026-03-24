@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct ProfileTabView: View {
+    //Credit card
+    @State private var showCustomerProfileDetails = false
+    
     
     
     @StateObject private var viewModel = ProfileViewModel()
@@ -55,12 +58,12 @@ struct ProfileTabView: View {
                                 .listRowBackground(Color.clear)
 
                             Section {
+                                
                                 NavigationLink {
-                                    AccountInformationView(viewModel: viewModel, profile: profile)
+                                    AccountInformationView()
                                 } label: {
-                                    Label("Account Information", systemImage: "person.text.rectangle")
+                                    Label("Account Information", systemImage: "creditcard.fill")
                                 }
-
                                 Button {
                                     showSettings = true
                                 } label: {
@@ -83,26 +86,6 @@ struct ProfileTabView: View {
                                     Label("Sign Out", systemImage: "arrow.right.square")
                                 }
                             }
-
-                            Section("Payment Methods") {
-                                NavigationLink {
-                                    SavedCardsListView()
-                                } label: {
-                                    HStack {
-                                        Label("Credit Cards", systemImage: "creditcard.fill")
-                                        Spacer()
-                                        if !savedCards.isEmpty {
-                                            Text("\(savedCards.count)")
-                                                .font(.subheadline)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-
 
                             Section("Loft Golf Studios Store") {
                                 Button {
@@ -141,14 +124,10 @@ struct ProfileTabView: View {
             }
             .task {
                 localCard = LocalCardStore.load()
-                loadSavedCards()
             }
-            .onAppear {
-                loadSavedCards()
-            }
-
             
 
+            
             .confirmationDialog("Sign Out", isPresented: $viewModel.showLogoutConfirmation) {
                 Button("Sign Out", role: .destructive) {
                     viewModel.logout()
@@ -211,11 +190,21 @@ struct ProfileTabView: View {
                         }
                 }
             }
+            .sheet(isPresented: $showCustomerProfileDetails) {
+                NavigationStack {
+                    WebView(url: URL(string: "https://clients.uschedule.com/loftgolfstudios/customerprofile/details")!)
+                        .navigationTitle("Account Information")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showCustomerProfileDetails = false
+                                }
+                            }
+                        }
+                }
+            }
         }
-    }
-    
-    private func loadSavedCards() {
-        savedCards = PaymentCardKeychainManager.shared.loadAllCardDisplays()
     }
 }
 
@@ -239,48 +228,6 @@ private struct AccountHeaderView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12)
-    }
-}
-
-private struct AccountInformationView: View {
-    @ObservedObject var viewModel: ProfileViewModel
-    let profile: UserProfile
-
-    private var preferredLocation: String {
-        if let reference2 = profile.reference2, !reference2.isEmpty {
-            return reference2
-        }
-        return "Not set"
-    }
-
-    var body: some View {
-        Form {
-            Section {
-                Text("If you would like to modify your account details, please contact") +
-                Text(" CUSTOMER SUPPORT").bold()
-            }
-
-            Section("Account Information") {
-                LabeledContent("Preferred Location", value: preferredLocation)
-                LabeledContent("Email Address", value: profile.email)
-                LabeledContent("First Name", value: profile.firstName)
-                LabeledContent("Last Name", value: profile.lastName)
-                LabeledContent("Phone", value: profile.phone ?? "Not provided")
-            }
-
-            Section {
-                Button {
-                    viewModel.showEditProfile = true
-                } label: {
-                    Text("Update")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.black)
-            }
-        }
-        .navigationTitle("Account Information")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

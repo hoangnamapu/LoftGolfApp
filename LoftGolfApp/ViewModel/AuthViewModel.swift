@@ -74,6 +74,9 @@ private struct USRegisterRequest: Encodable {
     let LastName: String
     let Email: String
     let Phone: String?
+    let Reference1: String?
+    let Reference2: String?
+    let Reference3: String?
 }
 
 // Loose decoder so schema changes don't crash
@@ -117,7 +120,10 @@ final class AuthViewModel: ObservableObject {
                   email: String,
                   password: String,
                   phone: String? = nil,
-                  userName: String) async throws {
+                  userName: String,
+                  reference1: String? = nil,
+                  reference2: String? = nil,
+                  reference3: String? = nil) async throws {
 
         // Normalize inputs to avoid case/format duplicates
         let normalizedEmail = email.trimmedLowercased
@@ -152,7 +158,10 @@ final class AuthViewModel: ObservableObject {
                     firstName: first,
                     lastName: last,
                     email: normalizedEmail,
-                    phone: normalizedPhone
+                    phone: normalizedPhone,
+                    reference1: reference1,
+                    reference2: reference2,
+                    reference3: reference3
                 )
                 self.token = key
                 return
@@ -239,7 +248,10 @@ final class AuthViewModel: ObservableObject {
                               firstName: String,
                               lastName: String,
                               email: String,
-                              phone: String?) async throws -> String {
+                              phone: String?,
+                              reference1: String? = nil,
+                              reference2: String? = nil,
+                              reference3: String? = nil) async throws -> String {
         var req = try makeRequest(base: base, path: "RegisterUser", method: "POST")
         req.httpBody = try JSONEncoder().encode(USRegisterRequest(
             UserName: username,
@@ -247,7 +259,10 @@ final class AuthViewModel: ObservableObject {
             FirstName: firstName,
             LastName: lastName,
             Email: email,
-            Phone: phone
+            Phone: phone,
+            Reference1: reference1,
+            Reference2: reference2,
+            Reference3: reference3
         ))
 
         let (data, resp) = try await URLSession.shared.data(for: req)

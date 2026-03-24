@@ -57,7 +57,17 @@ final class BookingViewModel: ObservableObject {
     
     //Pricing
     @Published var estimatedPrice: Double?
-    
+
+    //Payment
+    @Published var selectedPaymentType: PaymentType = .payWithPrepayService
+    @Published var prepaidCards: [PrepayServiceCustomerModel] = []
+    @Published var selectedPrepaidCard: PrepayServiceCustomerModel? = nil
+    @Published var isLoadingPrepaidCards = false
+
+    var isPaymentReady: Bool {
+        selectedPaymentType == .payWithPrepayService && selectedPrepaidCard != nil
+    }
+
     //Booking Result
     @Published var bookingResult: AppointmentResultModel?
     @Published var showBookingSuccess = false
@@ -141,6 +151,23 @@ final class BookingViewModel: ObservableObject {
         }
     }
     
+    //Load prepaid service cards for the current customer
+    func loadPrepaidCards() async {
+        guard let token = authToken else { return }
+        isLoadingPrepaidCards = true
+        do {
+            let cards = try await client.prepayServiceCustomers(authToken: token)
+            self.prepaidCards = cards.filter { ($0.RemainingUnits ?? 0) > 0 && $0.StatusID == 1 }
+            // Auto-select the first card if none is already selected
+            if selectedPrepaidCard == nil, let first = self.prepaidCards.first {
+                self.selectedPrepaidCard = first
+            }
+        } catch {
+            print("Failed to load prepaid cards: \(error)")
+        }
+        isLoadingPrepaidCards = false
+    }
+
     //Load available time slots for selected criteria
     func loadAvailability() async {
         guard let token = authToken else {
@@ -233,10 +260,11 @@ final class BookingViewModel: ObservableObject {
                 StartTime: startTime,
                 ServiceLength: selectedDuration,
                 Notes: nil,
-                PaymentType: PaymentType.payAtLocation.rawValue,
-                PrepayServiceCustomerID: nil
+                PaymentType: selectedPaymentType.rawValue,
+                PaymentCard: nil,
+                PrepayServiceCustomerID: selectedPaymentType == .payWithPrepayService ? selectedPrepaidCard?.Id : nil
             )
-            
+
             let result = try await client.getPricing(authToken: token, booking: bookingModel)
             self.estimatedPrice = result.Price
         } catch {
@@ -271,8 +299,9 @@ final class BookingViewModel: ObservableObject {
                 StartTime: startTime,
                 ServiceLength: selectedDuration,
                 Notes: notes.isEmpty ? nil : notes,
-                PaymentType: PaymentType.payAtLocation.rawValue,
-                PrepayServiceCustomerID: nil
+                PaymentType: selectedPaymentType.rawValue,
+                PaymentCard: nil,
+                PrepayServiceCustomerID: selectedPaymentType == .payWithPrepayService ? selectedPrepaidCard?.Id : nil
             )
             
             let result = try await client.bookIt(authToken: token, booking: bookingModel)
@@ -366,6 +395,8 @@ final class BookingViewModel: ObservableObject {
         estimatedPrice = nil
         bookingResult = nil
         availableSlots = []
+        selectedPaymentType = .payWithPrepayService
+        selectedPrepaidCard = nil
     }
     
     //Bay Filtering based on Group Size

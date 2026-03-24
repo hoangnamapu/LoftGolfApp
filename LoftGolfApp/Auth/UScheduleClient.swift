@@ -61,7 +61,8 @@ struct BookingModel: Codable {
     let StartTime: String        // local ISO
     let ServiceLength: Int?
     let Notes: String?
-    let PaymentType: Int?        // 1=PayAtLocation
+    let PaymentType: Int?        // 1=PayAtLocation, 2=PayWithCreditCard
+    let PaymentCard: UScheduleCreditCard?
     let PrepayServiceCustomerID: Int?
 }
 
@@ -220,7 +221,7 @@ struct Customer: Codable, Identifiable {
     let MembershipStart: String?
     let Phone: String?
     let LoyaltyPointTotal: Int?
-    
+
     var id: Int { Id }
     
     var fullName: String {

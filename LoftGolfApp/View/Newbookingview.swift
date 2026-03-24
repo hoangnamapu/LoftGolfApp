@@ -525,7 +525,7 @@ struct SelectDateTimeView: View {
 //Step 5: Confirmation
 struct ConfirmBookingView: View {
     @ObservedObject var viewModel: BookingViewModel
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -533,21 +533,21 @@ struct ConfirmBookingView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Reservation Summary")
                         .font(.headline)
-                    
+
                     Divider()
-                    
+
                     SummaryRow(label: "Service", value: viewModel.selectedService?.Description ?? "—")
                     SummaryRow(label: "Date", value: formatDate(viewModel.selectedDate))
                     SummaryRow(label: "Time", value: formatTimeSlot(viewModel.selectedTimeSlot, duration: viewModel.selectedDuration))
                     SummaryRow(label: "Duration", value: viewModel.formatDuration(viewModel.selectedDuration))
                     SummaryRow(label: "Guests", value: "\(viewModel.groupSize)")
-                    
+
                     if let unit = viewModel.selectedResourceUnit {
                         SummaryRow(label: "Bay", value: unit.NickName ?? unit.Description)
                     }
-                    
+
                     Divider()
-                    
+
                     HStack {
                         Text("Total")
                             .font(.headline)
@@ -560,12 +560,90 @@ struct ConfirmBookingView: View {
                 .padding()
                 .background(Color(.systemBackground))
                 .cornerRadius(16)
-                
+
+                // Payment — prepaid credits only
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Payment")
+                        .font(.headline)
+
+                    if viewModel.isLoadingPrepaidCards {
+                        // Loading state
+                        HStack {
+                            ProgressView()
+                            Text("Loading your credits...")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+
+                    } else if viewModel.prepaidCards.isEmpty {
+                        // No credits state
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("No Prepaid Credits")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    Text("A prepaid credit package is required to book a bay.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Link(destination: URL(string: "https://loftgolfstudios.com")!) {
+                                Text("Visit loftgolfstudios.com to purchase a package")
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                        .padding()
+                        .background(Color.orange.opacity(0.08))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                        )
+
+                    } else {
+                        // Credits available — show selectable card rows
+                        ForEach(viewModel.prepaidCards) { card in
+                            Button {
+                                viewModel.selectedPaymentType = .payWithPrepayService
+                                viewModel.selectedPrepaidCard = card
+                            } label: {
+                                HStack {
+                                    Image(systemName: viewModel.selectedPrepaidCard?.Id == card.Id
+                                          ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(viewModel.selectedPrepaidCard?.Id == card.Id ? .green : .secondary)
+                                    Image(systemName: "ticket")
+                                        .foregroundStyle(.secondary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Prepaid Credits")
+                                            .foregroundStyle(.primary)
+                                        Text("\(card.RemainingUnits ?? 0) \(card.UnitName ?? "Hour(s)") remaining")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                }
+                                .padding()
+                                .background(Color(.systemBackground))
+                                .cornerRadius(12)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
                 // Notes
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Notes (Optional)")
                         .font(.headline)
-                    
+
                     TextField("Any special requests?", text: $viewModel.notes, axis: .vertical)
                         .lineLimit(3...6)
                         .padding()
@@ -594,6 +672,9 @@ struct ConfirmBookingView: View {
             }
             .padding()
         }
+        .task {
+            await viewModel.loadPrepaidCards()
+        }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 12) {
                 Button {
@@ -613,11 +694,11 @@ struct ConfirmBookingView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.green)
+                    .background(viewModel.isPaymentReady ? Color.green : Color.gray)
                     .cornerRadius(12)
                 }
-                .disabled(viewModel.isLoading)
-                
+                .disabled(viewModel.isLoading || !viewModel.isPaymentReady)
+
                 Button {
                     viewModel.previousStep()
                 } label: {

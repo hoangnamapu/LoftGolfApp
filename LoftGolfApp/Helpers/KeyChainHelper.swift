@@ -33,4 +33,14 @@ struct KeychainHelper {
         ]
         SecItemDelete(query as CFDictionary)
     }
+
+    static func saveString(_ value: String, key: String) {
+        guard let data = value.data(using: .utf8) else { return }
+        save(data, key: key)
+    }
+
+    static func readString(key: String) -> String? {
+        guard let data = read(key: key) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
 }

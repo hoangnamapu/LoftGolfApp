@@ -432,6 +432,10 @@ final class ProfileViewModel: ObservableObject {
         upcomingBookings = []
         pastBookings = []
         prepaidCards = []
+        // Clear saved credentials so biometric login is disabled after sign-out
+        UserDefaults.standard.set(false, forKey: "biometricEnabled")
+        KeychainHelper.delete(key: "loft.savedUsername")
+        KeychainHelper.delete(key: "loft.savedPassword")
     }
 
     func setAuthToken(_ token: String) {

@@ -69,12 +69,7 @@ struct BookingsTabView: View {
                 await viewModel.loadAppointments()
             }
             .sheet(isPresented: $showNewBooking) {
-                NewBookingView(authToken: authToken) {
-                    // On booking complete, refresh list
-                    Task {
-                        await viewModel.loadAppointments()
-                    }
-                }
+                BookingWebView(authToken: authToken)
             }
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK", role: .cancel) {}
