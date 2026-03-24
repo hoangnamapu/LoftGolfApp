@@ -11,8 +11,6 @@ import CoreLocation
 struct HomeTabView: View {
     @StateObject private var viewModel: HomeViewModel
     @State private var showNewBooking = false
-    @State private var freeHours: Int = 0
-    @State private var prepaidCards: [USPrepayServiceCustomer] = []
     let authToken: String?
     @Binding var selectedTab: Int
 
@@ -24,26 +22,6 @@ struct HomeTabView: View {
         _viewModel = StateObject(wrappedValue: viewModel ?? HomeViewModel())
     }
 
-    private func loadPrepaidCards() {
-        guard let token = authToken else {
-            print("❌ HomeTabView: authToken is nil")
-            return
-        }
-
-        PrepaidCreditsService.fetchPrepaidCards(authToken: token) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let cards):
-                    self.prepaidCards = cards.filter { $0.RemainingUnits > 0 }
-                    self.freeHours = self.prepaidCards.reduce(0) { $0 + $1.RemainingUnits }
-                case .failure(let err):
-                    print("❌ Prepaid cards error:", err)
-                    self.prepaidCards = []
-                    self.freeHours = 0
-                }
-            }
-        }
-    }
 
     var body: some View {
         NavigationStack {
@@ -86,8 +64,6 @@ struct HomeTabView: View {
                             }
                         )
 
-                        PrepaidCardsSection(cards: prepaidCards)
-
                         if viewModel.hasActiveAppointment {
                             let bay = viewModel.activeBayNumber
                             OpenDoorButton(bayId: bay) { viewModel.openDoor(bayId: bay) }
@@ -121,11 +97,9 @@ struct HomeTabView: View {
             .task {
                 if let token = authToken {
                     viewModel.setAuthToken(token)
-                    loadPrepaidCards()
                 }
                 await viewModel.loadData()
-            }
-        }
+            }        }
     }
 }
 
@@ -203,57 +177,6 @@ struct RewardsCard: View {
 
                 Spacer()
             }
-        }
-        .padding()
-        .background(Color(.systemGray6).opacity(0.15))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
-        )
-    }
-}
-
-struct PrepaidCardsSection: View {
-    let cards: [USPrepayServiceCustomer]
-
-    var body: some View {
-        VStack(spacing: 12) {
-            ForEach(cards, id: \.Id) { card in
-                PrepaidCardRow(card: card)
-            }
-        }
-    }
-}
-
-struct PrepaidCardRow: View {
-    let card: USPrepayServiceCustomer
-
-    private var title: String {
-        if let name = card.UnitName, !name.isEmpty { return name }
-        return "Prepaid Credit"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: "gift.fill")
-                    .foregroundStyle(.green)
-
-                Text(title)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-
-                Spacer()
-            }
-
-            Text("\(card.RemainingUnits)")
-                .font(.system(size: 40, weight: .bold))
-                .foregroundStyle(.green)
-
-            Text("Hours left")
-                .font(.subheadline)
-                .foregroundStyle(.gray)
         }
         .padding()
         .background(Color(.systemGray6).opacity(0.15))
