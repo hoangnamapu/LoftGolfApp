@@ -122,7 +122,7 @@ struct RewardsTabView: View {
 
             Divider().background(Color.gray.opacity(0.3))
 
-            Text("Points are earned from paid hours. Prepaid/free credits do not generate loyalty points.")
+            Text("Points are earned from paid hours. Prepaid/free credits do not generate loyalty points. 1 Booked Session = 10 points.")
                 .font(.caption)
                 .foregroundStyle(.gray)
         }
@@ -141,19 +141,19 @@ struct RewardsTabView: View {
             HStack {
                 Image(systemName: "ticket.fill")
                     .foregroundStyle(.green)
-                Text("Anytime Credits")
+                Text("Anytime Credit")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(.white)
                 Spacer()
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                creditRow(title: "Available anytime credits", value: viewModel.anytimeCredits)
+                creditRow(title: "Available Anytime Credit", value: viewModel.anytimeCredits)
             }
 
             Divider().background(Color.gray.opacity(0.3))
 
-            Text("Every 50 loyalty points automatically converts into 1 Anytime Credit.")
+            Text("Every 50 loyalty points converts into 1 Anytime Credit.")
                 .font(.caption)
                 .foregroundStyle(.gray)
         }
@@ -202,13 +202,22 @@ struct RewardsTabView: View {
                         link: "https://www.instagram.com/loftgolfstudios"
                     )
 
-                ladderRow(title: "Post a story and tag Loft Golf", isDone: viewModel.didPostStory)
-                ladderRow(title: "Leave a Google review", isDone: viewModel.didReview)
+                ladderRow(
+                        title: "Post a story and tag Loft Golf",
+                        isDone: viewModel.didPostStory,
+                        link: "https://www.instagram.com/loftgolfstudios"
+                    )
+                
+                ladderRow(
+                        title: "Leave a Yelp Review",
+                        isDone: viewModel.didReview,
+                        link: "https://www.yelp.com/biz/loft-golf-studios-tempe"
+                    )
             }
 
             Divider().background(Color.gray.opacity(0.3))
 
-            Text("Once you reach the threshold, your account receives 1 Free Hour Credit (Anytime).")
+            Text("Once you complete all three, your account receives 1 Free Anytime Credit.")
                 .font(.caption)
                 .foregroundStyle(.gray)
 
