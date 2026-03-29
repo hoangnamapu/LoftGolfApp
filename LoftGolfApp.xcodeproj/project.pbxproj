@@ -97,7 +97,7 @@
 		BABC71CB2E99C23300DC35B9 = {
 			isa = PBXGroup;
 			children = (
-					BABC71D62E99C23300DC35B9 /* LoftGolfApp */,
+				BABC71D62E99C23300DC35B9 /* LoftGolfApp */,
 				BABC71E72E99C23400DC35B9 /* LoftGolfAppTests */,
 				BABC71F12E99C23400DC35B9 /* LoftGolfAppUITests */,
 				BAEF7E0C2E9A734700A2025E /* Frameworks */,

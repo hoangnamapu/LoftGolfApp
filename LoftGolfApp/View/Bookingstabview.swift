@@ -203,6 +203,13 @@ struct AppointmentCard: View {
         return date.timeIntervalSinceNow > 24 * 60 * 60
     }
     
+    private var bayName: String? {
+        guard let unitId = appointment.ResourceUnitID else { return nil }
+        if unitId == DoorConfig.bay1ResourceUnitId { return "Bay 1" }
+        if unitId == DoorConfig.bay2ResourceUnitId { return "Bay 2" }
+        return nil
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with date badge
@@ -231,14 +238,24 @@ struct AppointmentCard: View {
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
                                 .font(.caption)
-                            Text(date.formatted(.dateTime.hour().minute()))
-                            
                             if let end = endDate {
-                                Text("- \(end.formatted(.dateTime.hour().minute()))")
+                                Text("\(date.formatted(.dateTime.hour().minute())) – \(end.formatted(.dateTime.hour().minute()))")
+                            } else {
+                                Text(date.formatted(.dateTime.hour().minute()))
                             }
                         }
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        
+                        if let bay = bayName {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sportscourt")
+                                    .font(.caption)
+                                Text(bay)
+                            }
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 

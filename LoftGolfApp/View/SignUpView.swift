@@ -76,19 +76,10 @@ struct SignUpWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.processPool = Self.sharedProcessPool
-        config.websiteDataStore = .default()
+        config.websiteDataStore = .nonPersistent()
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-
-        if let token = authToken, !token.isEmpty {
-            let loginURLString = "https://clients.uschedule.com/loftgolfstudios/account/remotelogin?authKey=\(token)"
-            if let loginURL = URL(string: loginURLString) {
-                context.coordinator.redirectAfterLogin = URL(string: registerURL)
-                webView.load(URLRequest(url: loginURL))
-                return webView
-            }
-        }
 
         if let url = URL(string: registerURL) {
             webView.load(URLRequest(url: url))
