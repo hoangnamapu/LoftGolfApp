@@ -13,12 +13,14 @@ struct BookingWebView: View {
     var showNavBar = true
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
+    @State private var reloadTrigger = UUID()
 
     var body: some View {
         NavigationStack {
             ZStack {
                 BookingWKWebView(authToken: authToken, isLoading: $isLoading)
                     .ignoresSafeArea(edges: .bottom)
+                    .id(reloadTrigger)
 
                 if isLoading {
                     ProgressView("Loading...")
@@ -30,6 +32,9 @@ struct BookingWebView: View {
             }
             .navigationTitle("Book a Session")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                            reloadTrigger = UUID()
+                        }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EmptyView()

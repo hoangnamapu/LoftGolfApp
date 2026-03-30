@@ -230,7 +230,7 @@ struct LoginView: View {
         .fullScreenCover(isPresented: $showSignUp) {
             SignUpView(
                 isAuthenticated: $isAuthenticated,
-                authToken: $authToken
+                authToken: .constant(nil)
             )
             .ignoresSafeArea()
         }

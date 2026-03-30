@@ -104,7 +104,8 @@ struct HomeTabView: View {
                         UpcomingAppointmentsSection(
                             appointments: viewModel.upcomingAppointments,
                             isLoading: viewModel.isLoading,
-                            authToken: authToken
+                            authToken: authToken,
+                            viewModel: viewModel
                         )
 
                         if viewModel.hasActiveAppointment {
@@ -368,26 +369,13 @@ struct UpcomingAppointmentsSection: View {
     let appointments: [Appointment]
     let isLoading: Bool
     let authToken: String?
+    @ObservedObject var viewModel: HomeViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Upcoming")
-                    .font(.system(size: 25, weight: .semibold))
-                    .foregroundStyle(.white)
-
-                Spacer()
-
-                if !appointments.isEmpty {
-                    NavigationLink {
-                        BookingsTabView(authToken: authToken)
-                    } label: {
-                        Text("See All")
-                            .font(.subheadline)
-                            .foregroundStyle(.green)
-                    }
-                }
-            }
+            Text("Upcoming")
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(.white)
 
             if isLoading {
                 HStack {
@@ -411,7 +399,12 @@ struct UpcomingAppointmentsSection: View {
                 .padding(.vertical, 30)
             } else {
                 ForEach(appointments.prefix(3)) { appointment in
-                    UpcomingAppointmentCard(appointment: appointment)
+                    AppointmentCard(
+                        appointment: appointment,
+                        onCancel: {
+                            Task { await viewModel.cancelAppointment(appointment.Id) }
+                        }
+                    )
                 }
             }
         }
@@ -757,7 +750,17 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
     }
-
+    
+    func cancelAppointment(_ id: Int) async {
+        guard let token = authToken else { return }
+        do {
+            _ = try await client.cancelAppointment(authToken: token, id: id)
+            await loadData()
+        } catch {
+            print("Cancel failed: \(error)")
+        }
+    }
+    
     // Returns a valid Avigilon Alta JWT, re-logging in only when the cached token has expired
     private func fetchAvigilonJWT() async throws -> String {
         if AvigilonTokenCache.isValid, let cached = AvigilonTokenCache.jwt {
