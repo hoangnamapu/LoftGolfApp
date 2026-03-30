@@ -34,6 +34,12 @@ struct HomeTabView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let cards):
+                    for card in cards {
+                        print("PREPAID CARD -> id:", card.Id)
+                        print("name:", card.UnitName ?? "nil")
+                        print("remaining units:", card.RemainingUnits)
+                    }
+
                     self.prepaidCards = cards.filter { $0.RemainingUnits > 0 }
                     self.freeHours = self.prepaidCards.reduce(0) { $0 + $1.RemainingUnits }
                 case .failure(let err):
@@ -120,6 +126,7 @@ struct HomeTabView: View {
             }
             .task {
                 if let token = authToken {
+                    print("HOME TOKEN:", token)
                     viewModel.setAuthToken(token)
                     loadPrepaidCards()
                 }
@@ -196,13 +203,6 @@ struct RewardsCard: View {
             Divider()
                 .background(Color.gray.opacity(0.3))
 
-            HStack {
-                Text("\(anytimeCredits) credits")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.gray)
-
-                Spacer()
-            }
         }
         .padding()
         .background(Color(.systemGray6).opacity(0.15))
@@ -217,43 +217,52 @@ struct RewardsCard: View {
 struct PrepaidCardsSection: View {
     let cards: [USPrepayServiceCustomer]
 
-    var body: some View {
-        VStack(spacing: 12) {
-            ForEach(cards, id: \.Id) { card in
-                PrepaidCardRow(card: card)
-            }
-        }
+    private var anytimeUnits: Int {
+        cards.count > 0 ? cards[0].RemainingUnits : 0
     }
-}
 
-struct PrepaidCardRow: View {
-    let card: USPrepayServiceCustomer
-
-    private var title: String {
-        if let name = card.UnitName, !name.isEmpty { return name }
-        return "Prepaid Credit"
+    private var weekdayUnits: Int {
+        cards.count > 1 ? cards[1].RemainingUnits : 0
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+
             HStack {
                 Image(systemName: "gift.fill")
                     .foregroundStyle(.green)
 
-                Text(title)
-                    .font(.system(size: 18, weight: .semibold))
+                Text("Prepaid Credit")
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
 
                 Spacer()
             }
 
-            Text("\(card.RemainingUnits)")
-                .font(.system(size: 40, weight: .bold))
-                .foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 16) {
 
-            Text("Hours left")
-                .font(.subheadline)
-                .foregroundStyle(.gray)
+                // Anytime
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(anytimeUnits)")
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundStyle(.green)
+
+                    Text("Anytime")
+                        .font(.subheadline)
+                        .foregroundStyle(.gray)
+                }
+
+                // Weekday
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(weekdayUnits)")
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundStyle(.green)
+
+                    Text("Weekday")
+                        .font(.subheadline)
+                        .foregroundStyle(.gray)
+                }
+            }
         }
         .padding()
         .background(Color(.systemGray6).opacity(0.15))
@@ -603,8 +612,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             let customer = try await client.customer(authToken: token)
             self.customerName = customer.FirstName
             let loyaltyPoints = customer.LoyaltyPointTotal ?? 0
-            self.currentProgressPoints = loyaltyPoints % 50
-            self.anytimeCredits = loyaltyPoints / 50
+            self.currentProgressPoints = loyaltyPoints
+            self.anytimeCredits = 0
 
             if Task.isCancelled { return }
             let appointments = try await client.appointments(authToken: token)
