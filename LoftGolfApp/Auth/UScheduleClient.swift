@@ -433,8 +433,11 @@ final class UScheduleClient {
     }
         
     func cancelAppointment(authToken: String, id: Int) async throws -> String {
-            struct IdModel: Codable { let AppointmentID: Int }
-            let req = request("cancelappointment", authToken: authToken, httpMethod: "POST", body: try enc.encode(IdModel(AppointmentID: id)))
+        struct CancelAppointmentRequest: Codable { let id: Int }
+        struct LegacyCancelAppointmentRequest: Codable { let AppointmentID: Int }
+
+        func sendCancelRequest<Request: Encodable>(_ body: Request) async throws -> String {
+            let req = request("cancelappointment", authToken: authToken, httpMethod: "POST", body: try enc.encode(body))
             let (data, resp) = try await URLSession.shared.data(for: req)
             guard let http = resp as? HTTPURLResponse else { throw USError.unknown }
 
@@ -448,6 +451,24 @@ final class UScheduleClient {
                 throw USError.http(http.statusCode, responseText)
             }
         }
+
+        do {
+            return try await sendCancelRequest(CancelAppointmentRequest(id: id))
+        } catch let firstError as USError {
+            // Some app paths previously used AppointmentID. Retry once with the legacy key
+            // so existing accounts are not blocked if the API still expects that contract.
+            switch firstError {
+            case .http:
+                do {
+                    return try await sendCancelRequest(LegacyCancelAppointmentRequest(AppointmentID: id))
+                } catch {
+                    throw firstError
+                }
+            default:
+                throw firstError
+            }
+        }
+    }
 
         // Customer Methods
         func customer(authToken: String) async throws -> Customer {

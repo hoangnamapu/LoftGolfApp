@@ -385,28 +385,16 @@ final class ProfileViewModel: ObservableObject {
     
     // MARK: - Appointment Actions
     func cancelAppointment(_ appointmentId: Int) async {
-        guard let token = authToken else { return }
-        
+        guard let token = authToken else {
+            errorMessage = "Not authenticated"
+            return
+        }
+
         do {
-            var request = URLRequest(url: URL(string: "\(USConfig.baseURL)/api/\(USConfig.alias)/cancelappointment")!)
-            request.httpMethod = "POST"
-            request.setValue(USConfig.appKey, forHTTPHeaderField: "X-US-Application-Key")
-            request.setValue(token, forHTTPHeaderField: "X-US-AuthToken")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            
-            let body = ["id": appointmentId]
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            
-            let (_, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse,
-               httpResponse.statusCode == 200 {
-                await loadProfile() // Reload to get updated data
-            }
+            _ = try await client.cancelAppointment(authToken: token, id: appointmentId)
+            await loadProfile()
         } catch {
-            await MainActor.run {
-                self.errorMessage = "Failed to cancel appointment: \(error.localizedDescription)"
-            }
+            errorMessage = "Failed to cancel appointment: \(error.localizedDescription)"
         }
     }
     

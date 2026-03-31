@@ -15,6 +15,7 @@ struct ProfileTabView: View {
     @State private var showForgotPasscode = false
     @State private var savedCard: PaymentCardFormData?
     @State private var showGiftCardStore = false
+    @State private var showPrepaidCardStore = false
     
     @State private var localCard: LocalCardInfo?
     @State private var savedCards: [SavedCardDisplay] = []
@@ -70,7 +71,7 @@ struct ProfileTabView: View {
                                     Label("Settings", systemImage: "gearshape.fill")
                                 }
 
-                                Link(destination: URL(string: "https://loftgolfstudios.com/faq")!) {
+                                Link(destination: URL(string: "https://loftgolfstudios.com/simulator-how-to")!) {
                                     Label("Help", systemImage: "questionmark.circle")
                                 }
                                 
@@ -88,6 +89,12 @@ struct ProfileTabView: View {
                             }
 
                             Section("Loft Golf Studios Store") {
+                                Button {
+                                    showPrepaidCardStore = true
+                                } label: {
+                                    Label("Buy Pre-Paid Discount Cards", systemImage: "creditcard.fill")
+                                }
+
                                 Button {
                                     showGiftCardStore = true
                                 } label: {
@@ -161,6 +168,20 @@ struct ProfileTabView: View {
             }
             .sheet(isPresented: $viewModel.showEditProfile) {
                 EditProfileView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showPrepaidCardStore) {
+                NavigationStack {
+                    WebView(url: URL(string: "https://clients.uschedule.com/loftgolfstudios/Product/PrepayServiceList")!)
+                        .navigationTitle("Pre-Paid Discount Cards")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showPrepaidCardStore = false
+                                }
+                            }
+                        }
+                }
             }
             .sheet(isPresented: $showGiftCardStore) {
                 NavigationStack {

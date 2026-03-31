@@ -238,11 +238,7 @@ struct AppointmentCard: View {
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
                                 .font(.caption)
-                            if let end = endDate {
-                                Text("\(date.formatted(.dateTime.hour().minute())) – \(end.formatted(.dateTime.hour().minute()))")
-                            } else {
-                                Text(date.formatted(.dateTime.hour().minute()))
-                            }
+                            Text(compactTimeRange(start: date, end: endDate))
                         }
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -300,10 +296,33 @@ struct AppointmentCard: View {
                 onCancel()
             }
         } message: {
-            Text("Are you sure you want to cancel this reservation? This cannot be undone.")
+            Text("Are you sure you want to cancel this reservation? Cancellations made more than 24 hours in advance will be refunded to your original payment method.")
         }
     }
     
+    /// Formats a time range compactly: "9:00 – 10:00 AM" (AM/PM only on the end time)
+    private func compactTimeRange(start: Date, end: Date?) -> String {
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "h:mm"
+        let amPmFormatter = DateFormatter()
+        amPmFormatter.dateFormat = "h:mm a"
+
+        if let end = end {
+            // Determine if start and end share the same AM/PM
+            let calendar = Calendar.current
+            let startHour = calendar.component(.hour, from: start)
+            let endHour = calendar.component(.hour, from: end)
+            let sameHalf = (startHour < 12) == (endHour < 12)
+            if sameHalf {
+                return "\(timeFormatter.string(from: start)) – \(amPmFormatter.string(from: end))"
+            } else {
+                return "\(amPmFormatter.string(from: start)) – \(amPmFormatter.string(from: end))"
+            }
+        } else {
+            return amPmFormatter.string(from: start)
+        }
+    }
+
     private var statusBadge: some View {
         let status = AppointmentStatusType(rawValue: appointment.StatusID ?? 1) ?? .active
         

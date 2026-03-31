@@ -342,14 +342,17 @@ final class BookingViewModel: ObservableObject {
             isLoading = false
             switch error {
             case .http(400, let message):
-                showErrorMessage("Cannot cancel: \(message)")
+                let detail = message.isEmpty ? "The reservation could not be cancelled. It may be within the 24-hour cancellation window or already cancelled." : message
+                showErrorMessage("Cancellation failed: \(detail)")
+            case .http(let code, let message):
+                showErrorMessage("Cancellation failed (error \(code)): \(message)")
             default:
-                showErrorMessage(error.localizedDescription)
+                showErrorMessage("Cancellation failed: \(error.localizedDescription)")
             }
             return false
         } catch {
             isLoading = false
-            showErrorMessage(error.localizedDescription)
+            showErrorMessage("Cancellation failed: \(error.localizedDescription)")
             return false
         }
     }

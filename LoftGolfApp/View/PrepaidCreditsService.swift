@@ -2,12 +2,18 @@ import Foundation
 
 struct USPrepayServiceCustomer: Codable {
     let Id: Int
-       let RemainingUnits: Int
-       let OriginalUnits: Int
-       let UnitName: String?
-       let EndDate: String?
+    let RemainingUnits: Int
+    let OriginalUnits: Int
+    let UnitName: String?
+    let EndDate: String?
+    let ServiceName: String?
 
-        var id: Int { Id }
+    var id: Int { Id }
+
+    /// Human-readable label: uses ServiceName from API, falls back to UnitName, then generic
+    var displayName: String {
+        ServiceName ?? UnitName ?? "Prepaid Credit"
+    }
 }
 
 final class PrepaidCreditsService {

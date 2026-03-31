@@ -203,7 +203,6 @@ struct LoginView: View {
                 .shadow(radius: 8)
                 .padding(.horizontal, 18)
             }
-            .ignoresSafeArea(.keyboard)
             .onAppear {
                 if let saved = KeychainHelper.readString(key: "loft.savedUsername") {
                     email = saved

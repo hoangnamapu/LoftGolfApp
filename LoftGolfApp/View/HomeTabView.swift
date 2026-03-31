@@ -24,6 +24,20 @@ struct HomeTabView: View {
         _viewModel = StateObject(wrappedValue: viewModel ?? HomeViewModel())
     }
 
+    private var errorAlertBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
+        )
+    }
+
+    private var doorErrorAlertBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.doorErrorMessage != nil },
+            set: { if !$0 { viewModel.doorErrorMessage = nil } }
+        )
+    }
+
     private func loadPrepaidCards() {
         guard let token = authToken else {
             print("❌ HomeTabView: authToken is nil")
@@ -94,16 +108,13 @@ struct HomeTabView: View {
 
                         PrepaidCardsSection(cards: prepaidCards)
 
-                        if viewModel.hasActiveAppointment {
-                            let bay = viewModel.activeBayNumber
-                            OpenDoorButton(bayId: bay) { viewModel.openDoor(bayId: bay) }
-                        }
-
                         QuickBookCard { selectedTab = 2 }
 
                         UpcomingAppointmentsSection(
                             appointments: viewModel.upcomingAppointments,
                             isLoading: viewModel.isLoading,
+                            isInActivationWindow: viewModel.isInActivationWindow,
+                            nextBayNumber: viewModel.nextAppointmentBayNumber,
                             authToken: authToken,
                             viewModel: viewModel
                         )
@@ -132,6 +143,20 @@ struct HomeTabView: View {
                     loadPrepaidCards()
                 }
                 await viewModel.loadData()
+            }
+            .alert("Error", isPresented: errorAlertBinding) {
+                Button("OK", role: .cancel) {
+                    viewModel.errorMessage = nil
+                }
+            } message: {
+                Text(viewModel.errorMessage ?? "Something went wrong.")
+            }
+            .alert("Door Access Failed", isPresented: doorErrorAlertBinding) {
+                Button("OK", role: .cancel) {
+                    viewModel.doorErrorMessage = nil
+                }
+            } message: {
+                Text(viewModel.doorErrorMessage ?? "Could not open the door. Please try again or contact the front desk.")
             }
         }
     }
@@ -218,70 +243,56 @@ struct RewardsCard: View {
 struct PrepaidCardsSection: View {
     let cards: [USPrepayServiceCustomer]
 
-    private var anytimeUnits: Int {
-        cards.count > 0 ? cards[0].RemainingUnits : 0
-    }
-
-    private var weekdayUnits: Int {
-        cards.count > 1 ? cards[1].RemainingUnits : 0
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-
-            HStack {
-                Image(systemName: "gift.fill")
-                    .foregroundStyle(.green)
-
-                Text("Prepaid Credit")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-
-                Spacer()
-            }
-
-            VStack(alignment: .leading, spacing: 16) {
-
-                // Anytime
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(anytimeUnits)")
-                        .font(.system(size: 40, weight: .bold))
+        if cards.isEmpty {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "creditcard.fill")
                         .foregroundStyle(.green)
 
-                    Text("Anytime")
-                        .font(.subheadline)
-                        .foregroundStyle(.gray)
+                    Text("Prepaid Credits")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+
+                    Spacer()
                 }
 
-                // Weekday
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(weekdayUnits)")
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundStyle(.green)
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(cards, id: \.Id) { card in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(card.RemainingUnits)")
+                                .font(.system(size: 40, weight: .bold))
+                                .foregroundStyle(.green)
 
-                    Text("Weekday")
-                        .font(.subheadline)
-                        .foregroundStyle(.gray)
+                            Text(card.displayName)
+                                .font(.subheadline)
+                                .foregroundStyle(.gray)
+                        }
+                    }
                 }
             }
+            .padding()
+            .background(Color(.systemGray6).opacity(0.15))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+            )
         }
-        .padding()
-        .background(Color(.systemGray6).opacity(0.15))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
-        )
     }
 }
 
 struct OpenDoorButton: View {
     let bayId: Int
+    var isEnabled: Bool = true
     let action: () -> Void
     @State private var isPressed = false
 
     var body: some View {
         Button {
+            guard isEnabled else { return }
             isPressed = true
             action()
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -295,13 +306,13 @@ struct OpenDoorButton: View {
                 Text(isPressed ? "Opening..." : "Open Bay \(bayId) Door")
                     .font(.headline.bold())
             }
-            .foregroundStyle(.black)
+            .foregroundStyle(isEnabled ? .black : .white)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.green)
+            .background(isEnabled ? Color.green : Color.gray.opacity(0.4))
             .cornerRadius(12)
         }
-        .disabled(isPressed)
+        .disabled(isPressed || !isEnabled)
     }
 }
 
@@ -368,6 +379,8 @@ struct ServiceTypeButton: View {
 struct UpcomingAppointmentsSection: View {
     let appointments: [Appointment]
     let isLoading: Bool
+    let isInActivationWindow: Bool
+    let nextBayNumber: Int
     let authToken: String?
     @ObservedObject var viewModel: HomeViewModel
 
@@ -405,6 +418,15 @@ struct UpcomingAppointmentsSection: View {
                             Task { await viewModel.cancelAppointment(appointment.Id) }
                         }
                     )
+                }
+
+                // Open door button: always visible when there are appointments,
+                // greyed out outside the 15-min-before to end-time activation window
+                OpenDoorButton(
+                    bayId: nextBayNumber,
+                    isEnabled: isInActivationWindow
+                ) {
+                    viewModel.openDoor(bayId: nextBayNumber)
                 }
             }
         }
@@ -568,6 +590,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var isNearVenue = false
     @Published var currentProgressPoints = 0
     @Published var anytimeCredits = 0
+    @Published var errorMessage: String?
 
     private let client = UScheduleClient()
     private var authToken: String?
@@ -709,6 +732,38 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
 
+    // MARK: - Activation window (time-based only, no geofence required)
+
+    /// True when the current time is within the activation window of any upcoming appointment
+    /// (15 minutes before start through end time), regardless of location.
+    var isInActivationWindow: Bool {
+        let now = Date()
+        for appt in upcomingAppointments {
+            guard let startStr = appt.StartTime,
+                  let startTime = UScheduleClient.parseAPIDate(startStr),
+                  appt.StatusID == 1 else { continue }
+            let endTime: Date
+            if let endStr = appt.EndTime, let end = UScheduleClient.parseAPIDate(endStr) {
+                endTime = end
+            } else {
+                endTime = startTime.addingTimeInterval(3600)
+            }
+            let bufferStart = startTime.addingTimeInterval(-15 * 60)
+            if now >= bufferStart && now <= endTime {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Bay number for the soonest upcoming appointment (used for the open door button)
+    var nextAppointmentBayNumber: Int {
+        guard let first = upcomingAppointments.first else { return 1 }
+        if first.ResourceUnitID == DoorConfig.bay1ResourceUnitId { return 1 }
+        if first.ResourceUnitID == DoorConfig.bay2ResourceUnitId { return 2 }
+        return 1
+    }
+
     // MARK: - Bay detection
 
     var activeBayNumber: Int {
@@ -734,30 +789,68 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     // MARK: - Door control
 
+    @Published var doorErrorMessage: String?
+
     func openDoor(bayId: Int) {
         Task {
             do {
                 let jwt = try await fetchAvigilonJWT()
+
                 let urlStr = "https://api.openpath.com/api/v1/orgs/\(DoorConfig.orgId)/entries/\(DoorConfig.entryId)/remoteUnlocks"
                 guard let url = URL(string: urlStr) else { return }
                 var req = URLRequest(url: url)
                 req.httpMethod = "POST"
                 req.setValue(jwt, forHTTPHeaderField: "Authorization")
+                // Bug fix: API requires Content-Type + an (even empty) JSON body;
+                // a bodyless POST with Content-Type: application/json is rejected by some endpoints.
                 req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                URLSession.shared.dataTask(with: req).resume()
+                req.httpBody = "{}".data(using: .utf8)
+
+                // Bug fix: was fire-and-forget dataTask with no response check.
+                // Use async/await so errors are catchable and the status code is validated.
+                let (_, response) = try await URLSession.shared.data(for: req)
+                guard let http = response as? HTTPURLResponse else {
+                    throw URLError(.badServerResponse)
+                }
+                guard (200...299).contains(http.statusCode) else {
+                    throw URLError(.init(rawValue: http.statusCode))
+                }
+                // Success — door unlocked
+                print("Door unlocked successfully (Bay \(bayId))")
+
             } catch {
+                // Bug fix: was silently swallowed. Now surfaces to the user as an alert.
                 print("Door open failed: \(error)")
+                await MainActor.run {
+                    self.doorErrorMessage = "Could not open the door: \(error.localizedDescription)\n\nPlease try again or contact the front desk."
+                }
             }
         }
     }
     
     func cancelAppointment(_ id: Int) async {
-        guard let token = authToken else { return }
+        guard let token = authToken else {
+            errorMessage = "Not authenticated"
+            return
+        }
+
+        errorMessage = nil
+
         do {
             _ = try await client.cancelAppointment(authToken: token, id: id)
             await loadData()
+        } catch let error as USError {
+            switch error {
+            case .http(400, let message):
+                let detail = message.isEmpty ? "The reservation could not be cancelled." : message
+                errorMessage = "Cancellation failed: \(detail)"
+            case .http(let code, let message):
+                errorMessage = "Cancellation failed (error \(code)): \(message)"
+            default:
+                errorMessage = "Cancellation failed: \(error.localizedDescription)"
+            }
         } catch {
-            print("Cancel failed: \(error)")
+            errorMessage = "Cancellation failed: \(error.localizedDescription)"
         }
     }
     
@@ -787,7 +880,12 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         AvigilonTokenCache.jwt = token
         if let expiresAtStr = inner["expiresAt"] as? String {
-            AvigilonTokenCache.expiresAt = ISO8601DateFormatter().date(from: expiresAtStr)
+            // Bug fix: Avigilon Alta returns fractional seconds e.g. "2026-05-01T12:00:00.000Z"
+            // Default ISO8601DateFormatter cannot parse the ".000Z" suffix — must add .withFractionalSeconds.
+            // Without this fix, expiresAt is always nil → cache never valid → re-auth every tap.
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            AvigilonTokenCache.expiresAt = fmt.date(from: expiresAtStr)
         }
         return token
     }
