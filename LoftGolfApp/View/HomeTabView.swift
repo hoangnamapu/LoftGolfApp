@@ -289,6 +289,41 @@ struct RewardsCard: View {
 struct PrepaidCardsSection: View {
     let cards: [USPrepayServiceCustomer]
 
+    private var anytimeUnits: Int {
+        units(matching: ["anytime", "any time"], fallbackIndex: 0)
+    }
+
+    private var weekdayUnits: Int {
+        units(matching: ["weekday", "week day"], fallbackIndex: 1)
+    }
+
+    private var hasNamedCreditBuckets: Bool {
+        cards.contains { card in
+            let label = card.displayName.lowercased()
+            return label.contains("anytime")
+                || label.contains("any time")
+                || label.contains("weekday")
+                || label.contains("week day")
+        }
+    }
+
+    private func units(matching keywords: [String], fallbackIndex: Int) -> Int {
+        let matchedCards = cards.filter { card in
+            let label = card.displayName.lowercased()
+            return keywords.contains { label.contains($0) }
+        }
+
+        if !matchedCards.isEmpty {
+            return matchedCards.reduce(0) { $0 + $1.RemainingUnits }
+        }
+
+        if !hasNamedCreditBuckets, cards.indices.contains(fallbackIndex) {
+            return cards[fallbackIndex].RemainingUnits
+        }
+
+        return 0
+    }
+
     var body: some View {
         if cards.isEmpty {
             EmptyView()
@@ -306,16 +341,24 @@ struct PrepaidCardsSection: View {
                 }
 
                 VStack(alignment: .leading, spacing: 16) {
-                    ForEach(cards, id: \.Id) { card in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(card.RemainingUnits)")
-                                .font(.system(size: 40, weight: .bold))
-                                .foregroundStyle(.green)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(anytimeUnits)")
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(.green)
 
-                            Text(card.displayName)
-                                .font(.subheadline)
-                                .foregroundStyle(.gray)
-                        }
+                        Text("Anytime")
+                            .font(.subheadline)
+                            .foregroundStyle(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(weekdayUnits)")
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(.green)
+
+                        Text("Weekday")
+                            .font(.subheadline)
+                            .foregroundStyle(.gray)
                     }
                 }
             }
