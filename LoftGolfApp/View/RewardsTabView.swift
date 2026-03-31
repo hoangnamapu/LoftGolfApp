@@ -44,9 +44,6 @@ struct RewardsTabView: View {
                             .padding(.top, 20)
 
                         loyaltyPointsCard
-                        if viewModel.anytimeCredits > 0  {
-                            freeCreditsCard
-                        }
                         ladderRewardsCard
                     }
                     .padding(.horizontal)
@@ -97,6 +94,7 @@ struct RewardsTabView: View {
                     .foregroundStyle(.white)
                 Spacer()
             }
+
             HalfCircleProgressView(
                 progress: Double(viewModel.currentProgressPoints) / 50.0,
                 value: "\(viewModel.currentProgressPoints)",
@@ -105,24 +103,18 @@ struct RewardsTabView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
 
-            Text("You have \(viewModel.currentProgressPoints) Loyalty Points")     .font(.system(size: 18, weight: .semibold))
+            Text("You have \(viewModel.loyaltyPoints) Loyalty Points")
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.white)
 
-            if viewModel.anytimeCredits > 0 && viewModel.currentProgressPoints == 0 {
-                Text("Your loyalty points have converted into \(viewModel.anytimeCredits) Anytime Credit(s).")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(.top, 4)
-            } else {
-                Text("You are \(viewModel.pointsToNextReward) points away from earning 1 Anytime Credit.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(.top, 4)
-            }
+            Text(viewModel.progressMessage)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.top, 4)
 
             Divider().background(Color.gray.opacity(0.3))
 
-            Text("Points are earned from paid hours. Prepaid/free credits do not generate loyalty points.")
+            Text("50 points = 1 FREE 55 MIN SESSION. Points are earned from paid hours. Prepaid discount cards do not generate loyalty points.")
                 .font(.caption)
                 .foregroundStyle(.gray)
         }
@@ -135,98 +127,39 @@ struct RewardsTabView: View {
         )
     }
 
-    // MARK: - Free Credits
-    private var freeCreditsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "ticket.fill")
-                    .foregroundStyle(.green)
-                Text("Anytime Credits")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white)
-                Spacer()
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                creditRow(title: "Available anytime credits", value: viewModel.anytimeCredits)
-            }
-
-            Divider().background(Color.gray.opacity(0.3))
-
-            Text("Every 50 loyalty points automatically converts into 1 Anytime Credit.")
-                .font(.caption)
-                .foregroundStyle(.gray)
-        }
-        .padding()
-        .background(Color(.systemGray6).opacity(0.15))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-        )
-    }
-
-    private func creditRow(title: String, value: Int) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-            Spacer()
-            Text("\(value)")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(.green)
-        }
-        .padding(.vertical, 4)
-    }
 
     // MARK: - Ladder Rewards
     private var ladderRewardsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(spacing: 16) {
             HStack {
                 Image(systemName: "gift.fill")
                     .foregroundStyle(.green)
+
                 Text("Earn Rewards")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(.white)
+
                 Spacer()
             }
 
-            Text("Complete actions to earn a free 1-hour Anytime credit.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.85))
+            Spacer(minLength: 10)
 
             VStack(spacing: 10) {
-                ladderRow(
-                        title: "Follow Loft Golf on Instagram",
-                        isDone: viewModel.didFollow,
-                        link: "https://www.instagram.com/loftgolfstudios"
-                    )
-
-                ladderRow(title: "Post a story and tag Loft Golf", isDone: viewModel.didPostStory)
-                ladderRow(title: "Leave a Google review", isDone: viewModel.didReview)
-            }
-
-            Divider().background(Color.gray.opacity(0.3))
-
-            Text("Once you reach the threshold, your account receives 1 Free Hour Credit (Anytime).")
-                .font(.caption)
-                .foregroundStyle(.gray)
-
-            Button {
-                // Placeholder for future action
-            } label: {
                 Text("Coming Soon")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(size: 28, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.12))
-                    .cornerRadius(12)
+
+                Image(systemName: "clock.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.white)
             }
-            .buttonStyle(.plain)
-            .disabled(true)
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+
+            Spacer(minLength: 10)
         }
         .padding()
+        .frame(maxWidth: .infinity)
         .background(Color(.systemGray6).opacity(0.15))
         .cornerRadius(16)
         .overlay(
@@ -267,35 +200,41 @@ struct RewardsTabView: View {
     }
 }
 
-#Preview("User WITH 2 anytime credits") {
+#Preview("0 Points") {
+    let vm = RewardsViewModel()
+    vm.loyaltyPoints = 0
+    vm.currentProgressPoints = 0
+    vm.pointsToNextReward = 50
+    vm.earnedFreeSessions = 0
+    return RewardsTabView(authToken: nil, previewModel: vm)
+}
+
+#Preview("40 Points") {
+    let vm = RewardsViewModel()
+    vm.loyaltyPoints = 40
+    vm.currentProgressPoints = 40
+    vm.pointsToNextReward = 10
+    vm.earnedFreeSessions = 0
+    return RewardsTabView(authToken: nil, previewModel: vm)
+}
+
+#Preview("190 Points") {
+    let vm = RewardsViewModel()
+    vm.loyaltyPoints = 190
+    vm.currentProgressPoints = 40
+    vm.pointsToNextReward = 10
+    vm.earnedFreeSessions = 3
+    return RewardsTabView(authToken: nil, previewModel: vm)
+}
+
+#Preview("100 Points") {
     let vm = RewardsViewModel()
     vm.loyaltyPoints = 100
     vm.currentProgressPoints = 0
-    vm.anytimeCredits = 2
     vm.pointsToNextReward = 0
-    vm.canRedeemHours = 2
+    vm.earnedFreeSessions = 2
     return RewardsTabView(authToken: nil, previewModel: vm)
 }
-#Preview("User earning toward next credit") {
-    let vm = RewardsViewModel()
-    vm.loyaltyPoints = 35
-    vm.currentProgressPoints = 35
-    vm.anytimeCredits = 0
-    vm.pointsToNextReward = 15
-    vm.canRedeemHours = 0
-    return RewardsTabView(authToken: nil, previewModel: vm)
-}
-
-#Preview("User WITH 2 credits + progress (125 pts)") {
-    let vm = RewardsViewModel()
-    vm.loyaltyPoints = 125
-    vm.currentProgressPoints = 25
-    vm.anytimeCredits = 2
-    vm.pointsToNextReward = 25
-    vm.canRedeemHours = 2
-    return RewardsTabView(authToken: nil, previewModel: vm)
-}
-
 struct HalfCircleProgressView: View {
     var progress: Double          // 0.0 ... 1.0
     var value: String
