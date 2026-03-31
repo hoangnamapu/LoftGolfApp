@@ -433,8 +433,9 @@ final class UScheduleClient {
     }
         
     func cancelAppointment(authToken: String, id: Int) async throws -> String {
-        struct CancelAppointmentRequest: Codable { let id: Int }
+        struct CancelAppointmentRequest: Codable { let Id: Int }
         struct LegacyCancelAppointmentRequest: Codable { let AppointmentID: Int }
+        struct AlternateCancelAppointmentRequest: Codable { let id: Int }
 
         func sendCancelRequest<Request: Encodable>(_ body: Request) async throws -> String {
             let req = request("cancelappointment", authToken: authToken, httpMethod: "POST", body: try enc.encode(body))
@@ -452,21 +453,31 @@ final class UScheduleClient {
             }
         }
 
-        do {
-            return try await sendCancelRequest(CancelAppointmentRequest(id: id))
-        } catch let firstError as USError {
-            // Some app paths previously used AppointmentID. Retry once with the legacy key
-            // so existing accounts are not blocked if the API still expects that contract.
-            switch firstError {
-            case .http:
-                do {
-                    return try await sendCancelRequest(LegacyCancelAppointmentRequest(AppointmentID: id))
-                } catch {
-                    throw firstError
-                }
-            default:
-                throw firstError
+        func shouldRetry(after error: Error) -> Bool {
+            if case USError.http = error {
+                return true
             }
+            return false
+        }
+
+        // USchedule cancellation has been inconsistent across environments.
+        // Prefer the previously working "Id" contract, then fall back to older variants.
+        do {
+            return try await sendCancelRequest(CancelAppointmentRequest(Id: id))
+        } catch {
+            guard shouldRetry(after: error) else { throw error }
+        }
+
+        do {
+            return try await sendCancelRequest(LegacyCancelAppointmentRequest(AppointmentID: id))
+        } catch {
+            guard shouldRetry(after: error) else { throw error }
+        }
+
+        do {
+            return try await sendCancelRequest(AlternateCancelAppointmentRequest(id: id))
+        } catch {
+            throw error
         }
     }
 

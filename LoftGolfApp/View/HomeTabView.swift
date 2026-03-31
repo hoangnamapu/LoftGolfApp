@@ -8,6 +8,52 @@
 import SwiftUI
 import CoreLocation
 
+private enum DoorAccessError: LocalizedError {
+    case invalidRequest
+    case http(statusCode: Int, context: String, message: String?)
+    case malformedResponse(context: String, details: String?)
+
+    var statusCode: Int? {
+        switch self {
+        case .http(let statusCode, _, _):
+            return statusCode
+        default:
+            return nil
+        }
+    }
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidRequest:
+            return "Door request could not be created."
+        case .http(let statusCode, let context, let message):
+            let detail = message?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let detail, !detail.isEmpty {
+                return "\(context) failed (HTTP \(statusCode)): \(detail)"
+            }
+
+            switch statusCode {
+            case 400:
+                return "\(context) failed (HTTP 400): the request was rejected by Avigilon Alta."
+            case 401:
+                return "\(context) failed (HTTP 401): the Avigilon Alta credentials were rejected."
+            case 403:
+                return "\(context) failed (HTTP 403): this account is not allowed to unlock that door."
+            case 404:
+                return "\(context) failed (HTTP 404): the configured organization or door entry could not be found."
+            default:
+                return "\(context) failed (HTTP \(statusCode))."
+            }
+        case .malformedResponse(let context, let details):
+            let detail = details?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let detail, !detail.isEmpty {
+                return "\(context) failed: \(detail)"
+            }
+            return "\(context) failed because the server returned an unexpected response."
+        }
+    }
+}
+
 struct HomeTabView: View {
     @StateObject private var viewModel: HomeViewModel
     @State private var showNewBooking = false
@@ -795,25 +841,12 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         Task {
             do {
                 let jwt = try await fetchAvigilonJWT()
-
-                let urlStr = "https://api.openpath.com/api/v1/orgs/\(DoorConfig.orgId)/entries/\(DoorConfig.entryId)/remoteUnlocks"
-                guard let url = URL(string: urlStr) else { return }
-                var req = URLRequest(url: url)
-                req.httpMethod = "POST"
-                req.setValue(jwt, forHTTPHeaderField: "Authorization")
-                // Bug fix: API requires Content-Type + an (even empty) JSON body;
-                // a bodyless POST with Content-Type: application/json is rejected by some endpoints.
-                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                req.httpBody = "{}".data(using: .utf8)
-
-                // Bug fix: was fire-and-forget dataTask with no response check.
-                // Use async/await so errors are catchable and the status code is validated.
-                let (_, response) = try await URLSession.shared.data(for: req)
-                guard let http = response as? HTTPURLResponse else {
-                    throw URLError(.badServerResponse)
-                }
-                guard (200...299).contains(http.statusCode) else {
-                    throw URLError(.init(rawValue: http.statusCode))
+                do {
+                    try await performRemoteUnlock(with: jwt)
+                } catch let error as DoorAccessError where error.statusCode == 401 {
+                    resetAvigilonTokenCache()
+                    let freshJWT = try await fetchAvigilonJWT()
+                    try await performRemoteUnlock(with: freshJWT)
                 }
                 // Success — door unlocked
                 print("Door unlocked successfully (Bay \(bayId))")
@@ -822,7 +855,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                 // Bug fix: was silently swallowed. Now surfaces to the user as an alert.
                 print("Door open failed: \(error)")
                 await MainActor.run {
-                    self.doorErrorMessage = "Could not open the door: \(error.localizedDescription)\n\nPlease try again or contact the front desk."
+                    self.doorErrorMessage = "\(error.localizedDescription)\n\nPlease try again or contact the front desk."
                 }
             }
         }
@@ -861,7 +894,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
 
         guard let url = URL(string: "https://api.openpath.com/auth/login") else {
-            throw URLError(.badURL)
+            throw DoorAccessError.invalidRequest
         }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
@@ -871,11 +904,15 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             "password": DoorConfig.botPassword
         ])
 
-        let (data, _) = try await URLSession.shared.data(for: req)
+        let data = try await performDoorRequest(req, context: "Door sign-in")
         guard let json  = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let inner = json["data"] as? [String: Any],
-              let token = inner["token"] as? String else {
-            throw URLError(.badServerResponse)
+              let token = inner["token"] as? String,
+              !token.isEmpty else {
+            throw DoorAccessError.malformedResponse(
+                context: "Door sign-in",
+                details: extractDoorServiceMessage(from: data)
+            )
         }
 
         AvigilonTokenCache.jwt = token
@@ -888,6 +925,94 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             AvigilonTokenCache.expiresAt = fmt.date(from: expiresAtStr)
         }
         return token
+    }
+
+    private func performRemoteUnlock(with jwt: String) async throws {
+        let urlStr = "https://api.openpath.com/api/v1/orgs/\(DoorConfig.orgId)/entries/\(DoorConfig.entryId)/remoteUnlocks"
+        guard let url = URL(string: urlStr) else {
+            throw DoorAccessError.invalidRequest
+        }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue(jwt, forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = "{}".data(using: .utf8)
+
+        _ = try await performDoorRequest(req, context: "Door unlock")
+    }
+
+    private func performDoorRequest(_ request: URLRequest, context: String) async throws -> Data {
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw DoorAccessError.malformedResponse(context: context, details: nil)
+        }
+
+        guard (200...299).contains(http.statusCode) else {
+            let detail = extractDoorServiceMessage(from: data)
+            if let rawBody = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+               !rawBody.isEmpty {
+                print("\(context) failed with HTTP \(http.statusCode): \(rawBody)")
+            } else {
+                print("\(context) failed with HTTP \(http.statusCode) and an empty response body.")
+            }
+            throw DoorAccessError.http(statusCode: http.statusCode, context: context, message: detail)
+        }
+
+        return data
+    }
+
+    private func extractDoorServiceMessage(from data: Data) -> String? {
+        guard !data.isEmpty else { return nil }
+
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let message = flattenDoorServiceMessage(json) {
+            return message
+        }
+
+        if let text = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !text.isEmpty {
+            return text
+        }
+
+        return nil
+    }
+
+    private func flattenDoorServiceMessage(_ value: Any) -> String? {
+        switch value {
+        case let text as String:
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+
+        case let dictionary as [String: Any]:
+            for key in ["message", "error", "detail", "details", "description", "error_description"] {
+                if let message = flattenDoorServiceMessage(dictionary[key] as Any) {
+                    return message
+                }
+            }
+
+            for key in ["errors", "data", "response"] {
+                if let message = flattenDoorServiceMessage(dictionary[key] as Any) {
+                    return message
+                }
+            }
+
+            return nil
+
+        case let array as [Any]:
+            let messages = array.compactMap(flattenDoorServiceMessage)
+            return messages.isEmpty ? nil : messages.joined(separator: ", ")
+
+        default:
+            return nil
+        }
+    }
+
+    private func resetAvigilonTokenCache() {
+        AvigilonTokenCache.jwt = nil
+        AvigilonTokenCache.expiresAt = nil
     }
 }
 
