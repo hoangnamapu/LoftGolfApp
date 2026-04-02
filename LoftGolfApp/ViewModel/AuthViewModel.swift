@@ -26,8 +26,18 @@ enum USAuthError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .http(let code, let body): return "HTTP \(code): \(body)"
-        case .emptyBody: return "Empty response body"
+        case .http(let code, let body):
+            let lower = body.lowercased()
+
+            if code == 401 {
+                if lower.contains("user not found") {
+                    return "We couldn't find an account with those details."
+                } else {
+                    return "Incorrect username or password."
+                }
+            }
+
+            return "Something went wrong. Please try again."        case .emptyBody: return "Empty response body"
         case .decoding(let msg, let sample): return "Decoding failed: \(msg)\nSample: \(sample)"
         case .badURL: return "Bad URL"
         case .unknown(let e): return e.localizedDescription

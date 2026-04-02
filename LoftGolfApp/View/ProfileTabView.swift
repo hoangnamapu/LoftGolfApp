@@ -1,11 +1,8 @@
 import SwiftUI
+import WebKit
 
 struct ProfileTabView: View {
-    //Credit card
     @State private var showCustomerProfileDetails = false
-    
-    
-    
     @StateObject private var viewModel = ProfileViewModel()
     @Binding var isAuthenticated: Bool
     let authToken: String?
@@ -16,11 +13,9 @@ struct ProfileTabView: View {
     @State private var savedCard: PaymentCardFormData?
     @State private var showGiftCardStore = false
     @State private var showPrepaidCardStore = false
-    
+
     @State private var localCard: LocalCardInfo?
     @State private var savedCards: [SavedCardDisplay] = []
-
-
 
     init(isAuthenticated: Binding<Bool>, authToken: String? = nil) {
         self._isAuthenticated = isAuthenticated
@@ -44,67 +39,71 @@ struct ProfileTabView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(.systemGroupedBackground)
-                    .ignoresSafeArea()
+                LinearGradient(
+                    colors: [
+                        Color.black,
+                        Color.black,
+                        Color.black,
+                        Color.black,
+                        Color.black,
+                        Color(.systemGray6).opacity(0.25),
+                        Color.white
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
                 Group {
                     if viewModel.isLoading {
                         ProgressView("Loading account...")
+                            .tint(.white)
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if let profile = viewModel.userProfile {
-                        List {
-                            AccountHeaderView(profile: profile)
-                                .listRowInsets(EdgeInsets(top: 12, leading: 24, bottom: 12, trailing: 24))
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 20) {
+                                Text("Account")
+                                    .font(.system(size: 34, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.top, 20)
 
-                            Section {
-                                
-                                NavigationLink {
-                                    AccountInformationView()
-                                } label: {
-                                    Label("Account Information", systemImage: "creditcard.fill")
-                                }
-                                Button {
-                                    showSettings = true
-                                } label: {
-                                    Label("Settings", systemImage: "gearshape.fill")
-                                }
+                                AccountHeaderView(profile: profile)
 
-                                Link(destination: URL(string: "https://loftgolfstudios.com/simulator-how-to")!) {
-                                    Label("Help", systemImage: "questionmark.circle")
-                                }
-                                
-                                Button {
-                                    showForgotPasscode = true
-                                } label: {
-                                    Label("Reset Password", systemImage: "key.fill")
-                                }
+                                accountSection(
+                                    title: "Account",
+                                    rows: [
+                                        .navigation("Account Information", systemImage: "creditcard.fill") {
+                                            AnyView(AccountInformationView())
+                                        },
+                                        .button("Settings", systemImage: "gearshape.fill") {
+                                            showSettings = true
+                                        },
+                                        .link("Help", systemImage: "questionmark.circle", url: URL(string: "https://loftgolfstudios.com/simulator-how-to")!),
+                                        .button("Reset Password", systemImage: "key.fill") {
+                                            showForgotPasscode = true
+                                        },
+                                        .destructive("Sign Out", systemImage: "arrow.right.square") {
+                                            viewModel.showLogoutConfirmation = true
+                                        }
+                                    ]
+                                )
 
-                                Button(role: .destructive) {
-                                    viewModel.showLogoutConfirmation = true
-                                } label: {
-                                    Label("Sign Out", systemImage: "arrow.right.square")
-                                }
+                                accountSection(
+                                    title: "Loft Golf Studios Store",
+                                    rows: [
+                                        .button("Buy Pre-Paid Discount Cards", systemImage: "creditcard.fill") {
+                                            showPrepaidCardStore = true
+                                        },
+                                        .button("Buy Gift Card", systemImage: "gift") {
+                                            showGiftCardStore = true
+                                        }
+                                    ]
+                                )
                             }
-
-                            Section("Loft Golf Studios Store") {
-                                Button {
-                                    showPrepaidCardStore = true
-                                } label: {
-                                    Label("Buy Pre-Paid Discount Cards", systemImage: "creditcard.fill")
-                                }
-
-                                Button {
-                                    showGiftCardStore = true
-                                } label: {
-                                    Label("Buy Gift Card", systemImage: "gift")
-                                }
-                            }
-
+                            .padding(.horizontal)
+                            .padding(.bottom, 40)
                         }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
                     } else {
                         ContentUnavailableView(
                             "No Account Data",
@@ -114,8 +113,9 @@ struct ProfileTabView: View {
                     }
                 }
             }
-            .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.large)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .refreshable {
                 await viewModel.loadProfile()
             }
@@ -127,14 +127,10 @@ struct ProfileTabView: View {
                 if viewModel.userProfile == nil {
                     await viewModel.loadProfile()
                 }
- 
             }
             .task {
                 localCard = LocalCardStore.load()
             }
-            
-
-            
             .confirmationDialog("Sign Out", isPresented: $viewModel.showLogoutConfirmation) {
                 Button("Sign Out", role: .destructive) {
                     viewModel.logout()
@@ -227,6 +223,34 @@ struct ProfileTabView: View {
             }
         }
     }
+
+    private func accountSection(title: String, rows: [AccountRow]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.gray)
+
+            VStack(spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    AccountRowView(row: row)
+
+                    if index < rows.count - 1 {
+                        Divider()
+                            .background(Color.gray.opacity(0.3))
+                            .padding(.leading, 46)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color(.systemGray6).opacity(0.15))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
 }
 
 private struct AccountHeaderView: View {
@@ -243,12 +267,81 @@ private struct AccountHeaderView: View {
 
             Text(profile.fullName)
                 .font(.title2.weight(.semibold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.white)
 
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 12)
+        .padding()
+        .background(Color(.systemGray6).opacity(0.15))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+        )
+    }
+}
+
+private enum AccountRow {
+    case navigation(String, systemImage: String, destination: () -> AnyView)
+    case button(String, systemImage: String, action: () -> Void)
+    case destructive(String, systemImage: String, action: () -> Void)
+    case link(String, systemImage: String, url: URL)
+}
+
+private struct AccountRowView: View {
+    let row: AccountRow
+
+    var body: some View {
+        switch row {
+        case .navigation(let title, let systemImage, let destination):
+            NavigationLink {
+                destination()
+            } label: {
+                rowLabel(title: title, systemImage: systemImage, isDestructive: false)
+            }
+            .buttonStyle(.plain)
+
+        case .button(let title, let systemImage, let action):
+            Button(action: action) {
+                rowLabel(title: title, systemImage: systemImage, isDestructive: false)
+            }
+            .buttonStyle(.plain)
+
+        case .destructive(let title, let systemImage, let action):
+            Button(role: .destructive, action: action) {
+                rowLabel(title: title, systemImage: systemImage, isDestructive: true)
+            }
+            .buttonStyle(.plain)
+
+        case .link(let title, let systemImage, let url):
+            Link(destination: url) {
+                rowLabel(title: title, systemImage: systemImage, isDestructive: false)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func rowLabel(title: String, systemImage: String, isDestructive: Bool) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(isDestructive ? .red : .green)
+                .frame(width: 24)
+
+            Text(title)
+                .font(.body)
+                .foregroundStyle(isDestructive ? .red : .white)
+
+            Spacer()
+
+            if !isDestructive {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.gray)
+            }
+        }
+        .padding(.vertical, 14)
     }
 }
 
@@ -289,14 +382,9 @@ private struct AccountSettingsView: View {
     }
 }
 
-
-
-
 #Preview {
     ProfileTabView(isAuthenticated: .constant(true))
 }
-
-import WebKit
 
 struct WebView: UIViewRepresentable {
     let url: URL
