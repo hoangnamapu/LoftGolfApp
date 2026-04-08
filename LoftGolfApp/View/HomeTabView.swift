@@ -281,7 +281,7 @@ struct RewardsCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
         )
     }
 }
@@ -332,42 +332,46 @@ struct PrepaidCardsSection: View {
                 HStack {
                     Image(systemName: "creditcard.fill")
                         .foregroundStyle(.green)
-
+                    
                     Text("Prepaid Credits")
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.white)
-
+                    
                     Spacer()
                 }
-
-                VStack(alignment: .leading, spacing: 16) {
+                
+                HStack(spacing: 20) {
+                    
+                    // Anytime
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(anytimeUnits)")
                             .font(.system(size: 40, weight: .bold))
                             .foregroundStyle(.green)
-
+                        
                         Text("Anytime")
                             .font(.subheadline)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(.white)
                     }
-
+                    
+                    // Weekday
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(weekdayUnits)")
                             .font(.system(size: 40, weight: .bold))
                             .foregroundStyle(.green)
-
+                        
                         Text("Weekday")
                             .font(.subheadline)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(.white)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding()
             .background(Color(.systemGray6).opacity(0.15))
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -435,7 +439,7 @@ struct QuickBookCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
         )
     }
 }
@@ -524,7 +528,7 @@ struct UpcomingAppointmentsSection: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
         )
     }
 }
@@ -546,7 +550,7 @@ struct UpcomingAppointmentCard: View {
             }
             .frame(width: 50)
             .padding(.vertical, 8)
-            .background(Color(.systemGray6).opacity(0.5))
+            .background(Color(.systemGray6).opacity(0.22))
             .cornerRadius(8)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -569,7 +573,7 @@ struct UpcomingAppointmentCard: View {
                 .foregroundStyle(.gray)
         }
         .padding()
-        .background(Color(.systemGray6).opacity(0.3))
+        .background(Color(.systemGray6).opacity(0.18))
         .cornerRadius(12)
     }
 
