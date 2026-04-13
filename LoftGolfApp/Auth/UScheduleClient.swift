@@ -444,7 +444,7 @@ final class UScheduleClient {
 
             let responseText = String(data: data, encoding: .utf8) ?? ""
 
-            if http.statusCode == 200 {
+            if (200...299).contains(http.statusCode) {
                 return "Ok"
             } else if http.statusCode == 400 {
                 throw USError.http(400, responseText)
