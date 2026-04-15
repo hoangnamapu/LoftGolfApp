@@ -477,6 +477,8 @@ struct UpcomingAppointmentsSection: View {
     let authToken: String?
     @ObservedObject var viewModel: HomeViewModel
 
+    @State private var showAppointmentsSheet = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Upcoming")
@@ -519,7 +521,7 @@ struct UpcomingAppointmentsSection: View {
                     bayId: nextBayNumber,
                     isEnabled: isInActivationWindow
                 ) {
-                    viewModel.openDoor(bayId: nextBayNumber)
+                    showAppointmentsSheet = true
                 }
             }
         }
@@ -530,6 +532,15 @@ struct UpcomingAppointmentsSection: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
         )
+        .sheet(isPresented: $showAppointmentsSheet) {
+            BookingWebView(
+                authToken: authToken,
+                showNavBar: true,
+                targetURL: "https://clients.uschedule.com/loftgolfstudios/customerprofile/appointments",
+                title: "My Appointments",
+                showDismissButton: true
+            )
+        }
     }
 }
 

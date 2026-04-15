@@ -11,6 +11,10 @@ import WebKit
 struct BookingWebView: View {
     let authToken: String?
     var showNavBar = true
+    var targetURL: String = "https://clients.uschedule.com/loftgolfstudios/booking"
+    var title: String = "Book a Session"
+    var showDismissButton = false
+
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
     @State private var reloadTrigger = UUID()
@@ -18,7 +22,7 @@ struct BookingWebView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                BookingWKWebView(authToken: authToken, isLoading: $isLoading)
+                BookingWKWebView(authToken: authToken, isLoading: $isLoading, targetURL: targetURL)
                     .ignoresSafeArea(edges: .bottom)
                     .id(reloadTrigger)
 
@@ -30,12 +34,17 @@ struct BookingWebView: View {
                         .shadow(radius: 4)
                 }
             }
-            .navigationTitle("Book a Session")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
-                            reloadTrigger = UUID()
-                        }
+                reloadTrigger = UUID()
+            }
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if showDismissButton {
+                        Button("Done") { dismiss() }
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EmptyView()
                 }
@@ -47,8 +56,7 @@ struct BookingWebView: View {
 struct BookingWKWebView: UIViewRepresentable {
     let authToken: String?
     @Binding var isLoading: Bool
-
-    private let bookingURL = "https://clients.uschedule.com/loftgolfstudios/booking"
+    let targetURL: String
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -65,8 +73,8 @@ struct BookingWKWebView: UIViewRepresentable {
                 webView.load(URLRequest(url: url))
             }
         } else {
-            // No token — go straight to booking page (user may need to log in manually)
-            if let url = URL(string: bookingURL) {
+            // No token — go straight to target page (user may need to log in manually)
+            if let url = URL(string: targetURL) {
                 webView.load(URLRequest(url: url))
             }
         }
@@ -88,10 +96,10 @@ struct BookingWKWebView: UIViewRepresentable {
                 self.parent.isLoading = false
             }
 
-            // After remotelogin completes, redirect to booking page
+            // After remotelogin completes, redirect to the configured target page
             guard let currentURL = webView.url?.absoluteString else { return }
             if currentURL.contains("remotelogin") {
-                if let url = URL(string: parent.bookingURL) {
+                if let url = URL(string: parent.targetURL) {
                     webView.load(URLRequest(url: url))
                 }
             }
