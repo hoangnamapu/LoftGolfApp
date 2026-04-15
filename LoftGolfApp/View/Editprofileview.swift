@@ -118,16 +118,15 @@ struct SettingsView: View {
     @ObservedObject var viewModel: ProfileViewModel
     @Binding var isAuthenticated: Bool
     @Binding var showSettings: Bool
+    @EnvironmentObject private var notificationManager: NotificationManager
     @State private var showDeleteAccount = false
     @State private var showPrivacyPolicy = false
     @State private var showTerms = false
-    @State private var notificationsEnabled = true
     @State private var emailNotifications = true
-    
+
     var body: some View {
         NavigationStack {
             List {
-                // Account Section
                 Section("Account") {
                     Button {
                         viewModel.showEditProfile = true
@@ -136,28 +135,38 @@ struct SettingsView: View {
                         Label("Edit Profile", systemImage: "person.circle")
                             .foregroundColor(.primary)
                     }
-                    
+
                     Button {
-                        // Change password functionality
                     } label: {
                         Label("Change Password", systemImage: "lock.rotation")
                             .foregroundColor(.primary)
                     }
                 }
-                
-                // Notifications
+
                 Section("Notifications") {
-                    Toggle(isOn: $notificationsEnabled) {
-                        Label("Push Notifications", systemImage: "bell")
+                    HStack {
+                        Text("Push Notifications")
+                        Spacer()
+                        if notificationManager.permissionGranted {
+                            Toggle("", isOn: .constant(true))
+                                .disabled(true)
+                        } else {
+                            Button("Enable") {
+                                Task {
+                                    await notificationManager.requestPermission()
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.green)
+                            .controlSize(.small)
+                        }
                     }
-                    
+
                     Toggle(isOn: $emailNotifications) {
                         Label("Email Updates", systemImage: "envelope")
                     }
-                    
                 }
 
-                // Legal
                 Section("Legal") {
                     Button {
                         showPrivacyPolicy = true
@@ -165,7 +174,7 @@ struct SettingsView: View {
                         Label("Privacy Policy", systemImage: "hand.raised")
                             .foregroundColor(.primary)
                     }
-                    
+
                     Button {
                         showTerms = true
                     } label: {
@@ -173,21 +182,19 @@ struct SettingsView: View {
                             .foregroundColor(.primary)
                     }
                 }
-                
-                // Support
+
                 Section("Support") {
                     Link(destination: URL(string: "mailto:info@loftgolfstudios.com")!) {
                         Label("Contact Support", systemImage: "envelope")
                             .foregroundColor(.primary)
                     }
-                    
+
                     Link(destination: URL(string: "https://loftgolfstudios.com/faq")!) {
                         Label("FAQ", systemImage: "questionmark.circle")
                             .foregroundColor(.primary)
                     }
                 }
-                
-                // Danger Zone
+
                 Section {
                     Button {
                         viewModel.showLogoutConfirmation = true
@@ -195,7 +202,7 @@ struct SettingsView: View {
                         Label("Sign Out", systemImage: "arrow.right.square")
                             .foregroundColor(.red)
                     }
-                    
+
                     Button {
                         showDeleteAccount = true
                     } label: {
@@ -203,21 +210,17 @@ struct SettingsView: View {
                             .foregroundColor(.red)
                     }
                 }
-                
-                // App Info
+
                 Section {
                     HStack {
                         Text("Version")
                         Spacer()
-                        Text("1.0.0")
-                            .foregroundColor(.secondary)
+                        Text("1.0.0").foregroundColor(.secondary)
                     }
-                    
                     HStack {
                         Text("Build")
                         Spacer()
-                        Text("100")
-                            .foregroundColor(.secondary)
+                        Text("100").foregroundColor(.secondary)
                     }
                 }
             }
@@ -225,9 +228,7 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        showSettings = false
-                    }
+                    Button("Done") { showSettings = false }
                 }
             }
             .confirmationDialog("Sign Out", isPresented: $viewModel.showLogoutConfirmation) {
@@ -242,9 +243,7 @@ struct SettingsView: View {
             }
             .alert("Delete Account", isPresented: $showDeleteAccount) {
                 Button("Cancel", role: .cancel) {}
-                Button("Delete", role: .destructive) {
-                    // Handle account deletion
-                }
+                Button("Delete", role: .destructive) {}
             } message: {
                 Text("This action cannot be undone. All your data will be permanently deleted.")
             }
@@ -257,6 +256,7 @@ struct SettingsView: View {
         }
     }
 }
+
 
 // MARK: - Booking Details View
 struct BookingDetailsView: View {

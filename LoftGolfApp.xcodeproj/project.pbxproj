@@ -10,6 +10,7 @@
 		BAB78B312E9B6B1C0059A7DE /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BAB78B302E9B6B1C0059A7DE /* FirebaseAuth */; };
 		BAB78B332E9B6B1C0059A7DE /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = BAB78B322E9B6B1C0059A7DE /* FirebaseFirestore */; };
 		BAB78B352E9C23A90059A7DE /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = BAB78B342E9C23A90059A7DE /* GoogleService-Info.plist */; };
+		D4BE30912F8C3B9A00A37BC4 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = D4BE30902F8C3B9A00A37BC4 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,9 +50,22 @@
 		BABC71EE2E99C23400DC35B9 /* LoftGolfAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LoftGolfAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D4BE309B2F8C3DDE00A37BC4 /* Exceptions for "LoftGolfApp" folder in "LoftGolfApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = BABC71D32E99C23300DC35B9 /* LoftGolfApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BABC71D62E99C23300DC35B9 /* LoftGolfApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D4BE309B2F8C3DDE00A37BC4 /* Exceptions for "LoftGolfApp" folder in "LoftGolfApp" target */,
+			);
 			path = LoftGolfApp;
 			sourceTree = "<group>";
 		};
@@ -72,6 +86,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D4BE30912F8C3B9A00A37BC4 /* FirebaseMessaging in Frameworks */,
 				BAB78B312E9B6B1C0059A7DE /* FirebaseAuth in Frameworks */,
 				BAB78B332E9B6B1C0059A7DE /* FirebaseFirestore in Frameworks */,
 			);
@@ -146,6 +161,7 @@
 			packageProductDependencies = (
 				BAB78B302E9B6B1C0059A7DE /* FirebaseAuth */,
 				BAB78B322E9B6B1C0059A7DE /* FirebaseFirestore */,
+				D4BE30902F8C3B9A00A37BC4 /* FirebaseMessaging */,
 			);
 			productName = LoftGolfApp;
 			productReference = BABC71D42E99C23300DC35B9 /* LoftGolfApp.app */;
@@ -431,12 +447,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = LoftGolfApp/LoftGolfApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"LoftGolfApp/Preview Content\"";
 				DEVELOPMENT_TEAM = 5FBXR5M5PJ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LoftGolfApp/Info.plist;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to quickly sign in to your Loft Golf account.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Loft Golf needs your location to verify you are on-site before unlocking the bay door.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -462,12 +480,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = LoftGolfApp/LoftGolfApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"LoftGolfApp/Preview Content\"";
 				DEVELOPMENT_TEAM = 5FBXR5M5PJ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LoftGolfApp/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to quickly sign in to your Loft Golf account.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Loft Golf needs your location to verify you are on-site before unlocking the bay door.";
@@ -619,6 +639,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = BAB78B2F2E9B6B1C0059A7DE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
+		};
+		D4BE30902F8C3B9A00A37BC4 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BAB78B2F2E9B6B1C0059A7DE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
