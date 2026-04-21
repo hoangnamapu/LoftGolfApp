@@ -43,19 +43,12 @@ jobs:
 
       - name: Run Tests
         run: |
-          DEST=$(xcrun simctl list devices available -j | python3 - <<'PYEOF'
-import json, sys
-data = json.load(sys.stdin)
-for runtime in sorted(data["devices"].keys(), reverse=True):
-    if "iOS" not in runtime:
-        continue
-    for d in data["devices"][runtime]:
-        if "iPhone 16" in d["name"] and d.get("isAvailable", False):
-            print(f'platform=iOS Simulator,id={d["udid"]}')
-            sys.exit(0)
-print("platform=iOS Simulator,name=iPhone 16")
-PYEOF
-          )
+          UDID=$(xcrun simctl list devices available | grep "iPhone 16 " | head -1 | grep -oE '[A-F0-9-]{36}' || true)
+          if [ -n "$UDID" ]; then
+            DEST="platform=iOS Simulator,id=$UDID"
+          else
+            DEST="platform=iOS Simulator,name=iPhone 16"
+          fi
           echo "Destination: $DEST"
           xcodebuild test \
             -project LoftGolfApp.xcodeproj \
