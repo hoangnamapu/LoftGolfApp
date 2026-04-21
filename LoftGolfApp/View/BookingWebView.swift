@@ -96,12 +96,28 @@ struct BookingWKWebView: UIViewRepresentable {
                 self.parent.isLoading = false
             }
 
-            // After remotelogin completes, redirect to the configured target page
             guard let currentURL = webView.url?.absoluteString else { return }
+
             if currentURL.contains("remotelogin") {
+                // After remotelogin, redirect to target page
                 if let url = URL(string: parent.targetURL) {
                     webView.load(URLRequest(url: url))
                 }
+            } else if currentURL.contains(parent.targetURL) {
+                // Scroll to "Upcoming Appointments" section
+                let js = """
+                (function() {
+                    var els = document.querySelectorAll('*');
+                    for (var i = 0; i < els.length; i++) {
+                        if (els[i].children.length === 0 &&
+                            els[i].textContent.trim() === 'Upcoming Appointments') {
+                            els[i].scrollIntoView({behavior: 'instant', block: 'start'});
+                            break;
+                        }
+                    }
+                })();
+                """
+                webView.evaluateJavaScript(js, completionHandler: nil)
             }
         }
 

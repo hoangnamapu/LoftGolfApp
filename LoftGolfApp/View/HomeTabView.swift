@@ -464,7 +464,7 @@ struct UpcomingAppointmentsSection: View {
             BookingWebView(
                 authToken: authToken,
                 showNavBar: true,
-                targetURL: "https://clients.uschedule.com/loftgolfstudios/customerprofile/upcomingappointments",
+                targetURL: "https://clients.uschedule.com/loftgolfstudios/customerprofile/appointments",
                 title: "My Appointments",
                 showDismissButton: true
             )
