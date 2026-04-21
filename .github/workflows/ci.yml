@@ -43,19 +43,19 @@ jobs:
 
       - name: Run Tests
         run: |
-          # Pick the best available iPhone 16 simulator (any installed iOS version)
-          DEST=$(xcrun simctl list devices available -j | python3 -c "
+          DEST=$(xcrun simctl list devices available -j | python3 - <<'PYEOF'
 import json, sys
 data = json.load(sys.stdin)
-for runtime in sorted(data['devices'].keys(), reverse=True):
-    if 'iOS' not in runtime:
+for runtime in sorted(data["devices"].keys(), reverse=True):
+    if "iOS" not in runtime:
         continue
-    for d in data['devices'][runtime]:
-        if 'iPhone 16' in d['name'] and d.get('isAvailable', False):
-            print(f'platform=iOS Simulator,id={d[\"udid\"]}')
-            exit()
-print('platform=iOS Simulator,name=iPhone 16')
-")
+    for d in data["devices"][runtime]:
+        if "iPhone 16" in d["name"] and d.get("isAvailable", False):
+            print(f'platform=iOS Simulator,id={d["udid"]}')
+            sys.exit(0)
+print("platform=iOS Simulator,name=iPhone 16")
+PYEOF
+          )
           echo "Destination: $DEST"
           xcodebuild test \
             -project LoftGolfApp.xcodeproj \
