@@ -30,10 +30,10 @@ jobs:
 
       - name: Install iOS Simulator Runtime
         run: |
-          xcrun simctl runtime add \
-            "$(xcode-select -p)/Platforms/iPhoneOS.platform/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS.simruntime" \
-            2>/dev/null || true
+          RUNTIME_PATH="$(xcode-select -p)/Platforms/iPhoneOS.platform/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS.simruntime"
+          xcrun simctl runtime add "$RUNTIME_PATH" && echo "Runtime added" || echo "Runtime already installed or add failed"
           xcrun simctl list runtimes
+          xcrun simctl list devices available | grep iPhone | head -10
 
       - name: Resolve Dependencies
         run: |
@@ -43,17 +43,10 @@ jobs:
 
       - name: Run Tests
         run: |
-          UDID=$(xcrun simctl list devices available | grep "iPhone 16 " | head -1 | grep -oE '[A-F0-9-]{36}' || true)
-          if [ -n "$UDID" ]; then
-            DEST="platform=iOS Simulator,id=$UDID"
-          else
-            DEST="platform=iOS Simulator,name=iPhone 16"
-          fi
-          echo "Destination: $DEST"
           xcodebuild test \
             -project LoftGolfApp.xcodeproj \
             -scheme LoftGolfApp \
-            -destination "$DEST" \
+            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 16' \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
