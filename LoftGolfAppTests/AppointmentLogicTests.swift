@@ -36,18 +36,18 @@ struct AppointmentLogicTests {
     }
 
     @Test @MainActor
-    func activationWindow_twentyMinBeforeStart_returnsFalse() {
+    func activationWindow_sixMinBeforeStart_returnsFalse() {
         let vm = HomeViewModel()
-        // Starts 20 min from now — outside the 15-min buffer
-        let appt = makeAppointment(startOffset: 20 * 60, endOffset: 80 * 60)
+        // Starts 6 min from now — outside the 5-min buffer
+        let appt = makeAppointment(startOffset: 6 * 60, endOffset: 66 * 60)
         #expect(!vm.isInActivationWindow(for: appt))
     }
 
     @Test @MainActor
     func activationWindow_justInsideBuffer_returnsTrue() {
         let vm = HomeViewModel()
-        // Starts in 14 min — inside the 15-min buffer
-        let appt = makeAppointment(startOffset: 14 * 60, endOffset: 74 * 60)
+        // Starts in 4 min — inside the 5-min buffer
+        let appt = makeAppointment(startOffset: 4 * 60, endOffset: 64 * 60)
         #expect(vm.isInActivationWindow(for: appt))
     }
 
@@ -60,10 +60,18 @@ struct AppointmentLogicTests {
     }
 
     @Test @MainActor
-    func activationWindow_oneSecondAfterEnd_returnsFalse() {
+    func activationWindow_fourteenMinAfterEnd_returnsTrue() {
         let vm = HomeViewModel()
-        // Ended 1 second ago
-        let appt = makeAppointment(startOffset: -61 * 60, endOffset: -1)
+        // Ended 14 min ago — within 15-min grace period
+        let appt = makeAppointment(startOffset: -74 * 60, endOffset: -14 * 60)
+        #expect(vm.isInActivationWindow(for: appt))
+    }
+
+    @Test @MainActor
+    func activationWindow_sixteenMinAfterEnd_returnsFalse() {
+        let vm = HomeViewModel()
+        // Ended 16 min ago — outside 15-min grace period
+        let appt = makeAppointment(startOffset: -76 * 60, endOffset: -16 * 60)
         #expect(!vm.isInActivationWindow(for: appt))
     }
 
@@ -76,10 +84,18 @@ struct AppointmentLogicTests {
     }
 
     @Test @MainActor
-    func activationWindow_noEndTime_sixtyOneMinIn_returnsFalse() {
+    func activationWindow_noEndTime_seventyFiveMinIn_returnsTrue() {
         let vm = HomeViewModel()
-        // 61 min past start, no EndTime → 1h default has passed
-        let appt = makeAppointment(startOffset: -61 * 60, endOffset: nil)
+        // 75 min past start, no EndTime → 1h default + 15-min grace = still open
+        let appt = makeAppointment(startOffset: -75 * 60, endOffset: nil)
+        #expect(vm.isInActivationWindow(for: appt))
+    }
+
+    @Test @MainActor
+    func activationWindow_noEndTime_seventySixMinIn_returnsFalse() {
+        let vm = HomeViewModel()
+        // 76 min past start → past 1h + 15-min grace
+        let appt = makeAppointment(startOffset: -76 * 60, endOffset: nil)
         #expect(!vm.isInActivationWindow(for: appt))
     }
 

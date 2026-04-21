@@ -464,7 +464,7 @@ struct UpcomingAppointmentsSection: View {
             BookingWebView(
                 authToken: authToken,
                 showNavBar: true,
-                targetURL: "https://clients.uschedule.com/loftgolfstudios/customerprofile/appointments",
+                targetURL: "https://clients.uschedule.com/loftgolfstudios/customerprofile/upcomingappointments",
                 title: "My Appointments",
                 showDismissButton: true
             )
@@ -554,8 +554,9 @@ class HomeViewModel: ObservableObject {
               appointment.StatusID == 1 else { return false }
         let endTime = UScheduleClient.parseAPIDate(appointment.EndTime)
                       ?? startTime.addingTimeInterval(3600)
-        let bufferStart = startTime.addingTimeInterval(-15 * 60)
-        return now >= bufferStart && now <= endTime
+        let bufferStart = startTime.addingTimeInterval(-5 * 60)
+        let bufferEnd   = endTime.addingTimeInterval(15 * 60)
+        return now >= bufferStart && now <= bufferEnd
     }
 
     func cancelAppointment(_ appointment: Appointment) async {
