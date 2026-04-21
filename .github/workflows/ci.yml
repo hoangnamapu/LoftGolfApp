@@ -15,10 +15,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16.2
+      - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.2'
+          xcode-version: 'latest-stable'
 
       - name: Cache Swift Packages
         uses: actions/cache@v4
@@ -27,13 +27,6 @@ jobs:
           key: ${{ runner.os }}-swiftpm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-swiftpm-
-
-      - name: Install iOS Simulator Runtime
-        run: |
-          RUNTIME_PATH="$(xcode-select -p)/Platforms/iPhoneOS.platform/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS.simruntime"
-          xcrun simctl runtime add "$RUNTIME_PATH" && echo "Runtime added" || echo "Runtime already installed or add failed"
-          xcrun simctl list runtimes
-          xcrun simctl list devices available | grep iPhone | head -10
 
       - name: Resolve Dependencies
         run: |
