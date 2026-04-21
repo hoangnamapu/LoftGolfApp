@@ -378,8 +378,10 @@ struct BookingDetailsView: View {
             .confirmationDialog("Cancel Booking", isPresented: $showCancelConfirmation) {
                 Button("Cancel Booking", role: .destructive) {
                     Task {
-                        await viewModel.cancelAppointment(booking.id)
-                        dismiss()
+                        let didCancel = await viewModel.cancelAppointment(booking)
+                        if didCancel {
+                            dismiss()
+                        }
                     }
                 }
                 Button("Keep Booking", role: .cancel) {}

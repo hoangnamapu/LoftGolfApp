@@ -134,7 +134,7 @@ struct BookingsTabView: View {
                         appointment: appointment,
                         onCancel: {
                             Task {
-                                await viewModel.cancelAppointment(appointment.Id)
+                                await viewModel.cancelAppointment(appointment)
                             }
                         }
                     )

@@ -15,10 +15,6 @@ final class RewardsViewModel: ObservableObject {
     @Published var pointsToNextReward: Int = 50
     @Published var earnedFreeSessions: Int = 0
 
-    @Published var didFollow: Bool = false
-    @Published var didPostStory: Bool = false
-    @Published var didReview: Bool = false
-
     private var authToken: String?
 
     func setAuthToken(_ token: String) {

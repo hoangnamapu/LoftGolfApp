@@ -6,53 +6,6 @@
 //
 
 import SwiftUI
-import CoreLocation
-
-private enum DoorAccessError: LocalizedError {
-    case invalidRequest
-    case http(statusCode: Int, context: String, message: String?)
-    case malformedResponse(context: String, details: String?)
-
-    var statusCode: Int? {
-        switch self {
-        case .http(let statusCode, _, _):
-            return statusCode
-        default:
-            return nil
-        }
-    }
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidRequest:
-            return "Door request could not be created."
-        case .http(let statusCode, let context, let message):
-            let detail = message?.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let detail, !detail.isEmpty {
-                return "\(context) failed (HTTP \(statusCode)): \(detail)"
-            }
-
-            switch statusCode {
-            case 400:
-                return "\(context) failed (HTTP 400): the request was rejected by Avigilon Alta."
-            case 401:
-                return "\(context) failed (HTTP 401): the Avigilon Alta credentials were rejected."
-            case 403:
-                return "\(context) failed (HTTP 403): this account is not allowed to unlock that door."
-            case 404:
-                return "\(context) failed (HTTP 404): the configured organization or door entry could not be found."
-            default:
-                return "\(context) failed (HTTP \(statusCode))."
-            }
-        case .malformedResponse(let context, let details):
-            let detail = details?.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let detail, !detail.isEmpty {
-                return "\(context) failed: \(detail)"
-            }
-            return "\(context) failed because the server returned an unexpected response."
-        }
-    }
-}
 
 struct HomeTabView: View {
     @StateObject private var viewModel: HomeViewModel
@@ -74,13 +27,6 @@ struct HomeTabView: View {
         Binding(
             get: { viewModel.errorMessage != nil },
             set: { if !$0 { viewModel.errorMessage = nil } }
-        )
-    }
-
-    private var doorErrorAlertBinding: Binding<Bool> {
-        Binding(
-            get: { viewModel.doorErrorMessage != nil },
-            set: { if !$0 { viewModel.doorErrorMessage = nil } }
         )
     }
 
@@ -159,15 +105,9 @@ struct HomeTabView: View {
                         UpcomingAppointmentsSection(
                             appointments: viewModel.upcomingAppointments,
                             isLoading: viewModel.isLoading,
-                            isInActivationWindow: viewModel.isInActivationWindow,
-                            nextBayNumber: viewModel.nextAppointmentBayNumber,
                             authToken: authToken,
                             viewModel: viewModel
                         )
-
-                        if viewModel.hasActiveAppointment {
-                            InVenueControlsCard()
-                        }
 
                         Spacer(minLength: 250)
                     }
@@ -196,13 +136,6 @@ struct HomeTabView: View {
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "Something went wrong.")
-            }
-            .alert("Door Access Failed", isPresented: doorErrorAlertBinding) {
-                Button("OK", role: .cancel) {
-                    viewModel.doorErrorMessage = nil
-                }
-            } message: {
-                Text(viewModel.doorErrorMessage ?? "Could not open the door. Please try again or contact the front desk.")
             }
         }
     }
@@ -378,7 +311,6 @@ struct PrepaidCardsSection: View {
 }
 
 struct OpenDoorButton: View {
-    let bayId: Int
     var isEnabled: Bool = true
     let action: () -> Void
     @State private var isPressed = false
@@ -396,7 +328,7 @@ struct OpenDoorButton: View {
                 Image(systemName: isPressed ? "door.left.hand.open" : "door.left.hand.closed")
                     .font(.title2)
 
-                Text(isPressed ? "Opening..." : "Open Bay \(bayId) Door")
+                Text(isPressed ? "Opening..." : "Open Door")
                     .font(.headline.bold())
             }
             .foregroundStyle(isEnabled ? .black : .white)
@@ -472,8 +404,6 @@ struct ServiceTypeButton: View {
 struct UpcomingAppointmentsSection: View {
     let appointments: [Appointment]
     let isLoading: Bool
-    let isInActivationWindow: Bool
-    let nextBayNumber: Int
     let authToken: String?
     @ObservedObject var viewModel: HomeViewModel
 
@@ -507,21 +437,19 @@ struct UpcomingAppointmentsSection: View {
                 .padding(.vertical, 30)
             } else {
                 ForEach(appointments.prefix(3)) { appointment in
-                    AppointmentCard(
-                        appointment: appointment,
-                        onCancel: {
-                            Task { await viewModel.cancelAppointment(appointment.Id) }
+                    VStack(spacing: 6) {
+                        AppointmentCard(
+                            appointment: appointment,
+                            onCancel: {
+                                Task { await viewModel.cancelAppointment(appointment) }
+                            }
+                        )
+                        OpenDoorButton(
+                            isEnabled: viewModel.isInActivationWindow(for: appointment)
+                        ) {
+                            showAppointmentsSheet = true
                         }
-                    )
-                }
-
-                // Open door button: always visible when there are appointments,
-                // greyed out outside the 15-min-before to end-time activation window
-                OpenDoorButton(
-                    bayId: nextBayNumber,
-                    isEnabled: isInActivationWindow
-                ) {
-                    showAppointmentsSheet = true
+                    }
                 }
             }
         }
@@ -544,170 +472,17 @@ struct UpcomingAppointmentsSection: View {
     }
 }
 
-//Upcoming Appointment Card
-struct UpcomingAppointmentCard: View {
-    let appointment: Appointment
-
-    var body: some View {
-        HStack(spacing: 16) {
-            VStack(spacing: 2) {
-                Text(monthString)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.green)
-
-                Text(dayString)
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 50)
-            .padding(.vertical, 8)
-            .background(Color(.systemGray6).opacity(0.22))
-            .cornerRadius(8)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(appointment.Description ?? "Simulator Rental")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-
-                HStack {
-                    Image(systemName: "clock")
-                        .font(.caption)
-                    Text(timeString)
-                        .font(.caption)
-                }
-                .foregroundStyle(.gray)
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .foregroundStyle(.gray)
-        }
-        .padding()
-        .background(Color(.systemGray6).opacity(0.18))
-        .cornerRadius(12)
-    }
-
-    private var monthString: String {
-        guard let startTime = appointment.StartTime,
-              let date = UScheduleClient.parseAPIDate(startTime) else {
-            return "---"
-        }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date).uppercased()
-    }
-
-    private var dayString: String {
-        guard let startTime = appointment.StartTime,
-              let date = UScheduleClient.parseAPIDate(startTime) else {
-            return "--"
-        }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: date)
-    }
-
-    private var timeString: String {
-        guard let startTime = appointment.StartTime,
-              let date = UScheduleClient.parseAPIDate(startTime) else {
-            return "--:--"
-        }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: date)
-    }
-}
-
-//In-Venue Controls Card
-struct InVenueControlsCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "slider.horizontal.3")
-                    .foregroundStyle(.green)
-
-                Text("Bay Controls")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-
-                Spacer()
-
-                Text("In-Venue")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.green.opacity(0.2))
-                    .cornerRadius(4)
-            }
-
-            HStack(spacing: 12) {
-                InVenueControlButton(icon: "lightbulb.fill", title: "Lights")
-                InVenueControlButton(icon: "thermometer.medium", title: "Climate")
-                InVenueControlButton(icon: "tv.fill", title: "TV")
-                InVenueControlButton(icon: "plus.circle.fill", title: "Extend")
-            }
-
-            Text("Controls available during your appointment")
-                .font(.caption)
-                .foregroundStyle(.gray)
-        }
-        .padding()
-        .background(Color(.systemGray6).opacity(0.15))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.green.opacity(0.3), lineWidth: 1)
-        )
-    }
-}
-
-//In-Venue Control Button
-struct InVenueControlButton: View {
-    let icon: String
-    let title: String
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(.white)
-
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.gray)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(Color(.systemGray6).opacity(0.3))
-        .cornerRadius(10)
-    }
-}
-
 @MainActor
-class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
+class HomeViewModel: ObservableObject {
     @Published var customerName: String?
     @Published var upcomingAppointments: [Appointment] = []
     @Published var isLoading = false
-    @Published var hasActiveAppointment = false
-    @Published var isNearVenue = false
     @Published var currentProgressPoints = 0
     @Published var anytimeCredits = 0
     @Published var errorMessage: String?
 
     private let client = UScheduleClient()
     private var authToken: String?
-
-    private let locationManager = CLLocationManager()
-    private let venueLocation   = CLLocation(latitude: 33.3954, longitude: -111.9256)
-    private let geofenceRadius: CLLocationDistance = 150  // meters
-
-    override init() {
-        super.init()
-        locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-    }
 
     var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -759,10 +534,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                     return aTime < bTime
                 }
 
-            // Trigger location check — delegate will set hasActiveAppointment
-            locationManager.requestWhenInUseAuthorization()
-            locationManager.requestLocation()
-
             if !Task.isCancelled {
                 isLoading = false
             }
@@ -774,152 +545,20 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
 
-    private func checkForActiveAppointment(_ appointments: [Appointment]) -> Bool {
+    // MARK: - Activation window
+
+    func isInActivationWindow(for appointment: Appointment) -> Bool {
         let now = Date()
-
-        for appointment in appointments {
-            guard let startTimeStr = appointment.StartTime,
-                  let startTime = UScheduleClient.parseAPIDate(startTimeStr),
-                  appointment.StatusID == 1 else {
-                continue
-            }
-
-            var endTime: Date
-            if let endStr = appointment.EndTime,
-               let end = UScheduleClient.parseAPIDate(endStr) {
-                endTime = end
-            } else {
-                endTime = startTime.addingTimeInterval(60 * 60)
-            }
-
-            let bufferStart = startTime.addingTimeInterval(-15 * 60)
-
-            if now >= bufferStart && now <= endTime {
-                return true
-            }
-        }
-
-        return false
+        guard let startStr = appointment.StartTime,
+              let startTime = UScheduleClient.parseAPIDate(startStr),
+              appointment.StatusID == 1 else { return false }
+        let endTime = UScheduleClient.parseAPIDate(appointment.EndTime)
+                      ?? startTime.addingTimeInterval(3600)
+        let bufferStart = startTime.addingTimeInterval(-15 * 60)
+        return now >= bufferStart && now <= endTime
     }
 
-    // MARK: - CLLocationManagerDelegate
-
-    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let loc = locations.last else { return }
-        let distance = loc.distance(from: venueLocation)
-        Task { @MainActor in
-            self.isNearVenue = distance <= geofenceRadius
-            self.hasActiveAppointment = self.isNearVenue && self.checkForActiveAppointment(self.upcomingAppointments)
-        }
-    }
-
-    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Location unavailable — require geofence, so hide the door button
-        Task { @MainActor in
-            self.isNearVenue = false
-            self.hasActiveAppointment = false
-        }
-    }
-
-    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        switch manager.authorizationStatus {
-        case .denied, .restricted:
-            // Permission denied — hide door button until location is granted
-            Task { @MainActor in
-                self.isNearVenue = false
-                self.hasActiveAppointment = false
-            }
-        case .authorizedWhenInUse, .authorizedAlways:
-            manager.requestLocation()
-        default:
-            break
-        }
-    }
-
-    // MARK: - Activation window (time-based only, no geofence required)
-
-    /// True when the current time is within the activation window of any upcoming appointment
-    /// (15 minutes before start through end time), regardless of location.
-    var isInActivationWindow: Bool {
-        let now = Date()
-        for appt in upcomingAppointments {
-            guard let startStr = appt.StartTime,
-                  let startTime = UScheduleClient.parseAPIDate(startStr),
-                  appt.StatusID == 1 else { continue }
-            let endTime: Date
-            if let endStr = appt.EndTime, let end = UScheduleClient.parseAPIDate(endStr) {
-                endTime = end
-            } else {
-                endTime = startTime.addingTimeInterval(3600)
-            }
-            let bufferStart = startTime.addingTimeInterval(-15 * 60)
-            if now >= bufferStart && now <= endTime {
-                return true
-            }
-        }
-        return false
-    }
-
-    /// Bay number for the soonest upcoming appointment (used for the open door button)
-    var nextAppointmentBayNumber: Int {
-        guard let first = upcomingAppointments.first else { return 1 }
-        if first.ResourceUnitID == DoorConfig.bay1ResourceUnitId { return 1 }
-        if first.ResourceUnitID == DoorConfig.bay2ResourceUnitId { return 2 }
-        return 1
-    }
-
-    // MARK: - Bay detection
-
-    var activeBayNumber: Int {
-        let now = Date()
-        for appt in upcomingAppointments {
-            guard let startStr = appt.StartTime,
-                  let startTime = UScheduleClient.parseAPIDate(startStr),
-                  appt.StatusID == 1 else { continue }
-            let endTime: Date
-            if let endStr = appt.EndTime, let end = UScheduleClient.parseAPIDate(endStr) {
-                endTime = end
-            } else {
-                endTime = startTime.addingTimeInterval(3600)
-            }
-            let bufferStart = startTime.addingTimeInterval(-15 * 60)
-            if now >= bufferStart && now <= endTime {
-                if appt.ResourceUnitID == DoorConfig.bay1ResourceUnitId { return 1 }
-                return 2
-            }
-        }
-        return 1
-    }
-
-    // MARK: - Door control
-
-    @Published var doorErrorMessage: String?
-
-    func openDoor(bayId: Int) {
-        Task {
-            do {
-                let jwt = try await fetchAvigilonJWT()
-                do {
-                    try await performRemoteUnlock(with: jwt)
-                } catch let error as DoorAccessError where error.statusCode == 401 {
-                    resetAvigilonTokenCache()
-                    let freshJWT = try await fetchAvigilonJWT()
-                    try await performRemoteUnlock(with: freshJWT)
-                }
-                // Success — door unlocked
-                print("Door unlocked successfully (Bay \(bayId))")
-
-            } catch {
-                // Bug fix: was silently swallowed. Now surfaces to the user as an alert.
-                print("Door open failed: \(error)")
-                await MainActor.run {
-                    self.doorErrorMessage = "\(error.localizedDescription)\n\nPlease try again or contact the front desk."
-                }
-            }
-        }
-    }
-    
-    func cancelAppointment(_ id: Int) async {
+    func cancelAppointment(_ appointment: Appointment) async {
         guard let token = authToken else {
             errorMessage = "Not authenticated"
             return
@@ -928,7 +567,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         errorMessage = nil
 
         do {
-            _ = try await client.cancelAppointment(authToken: token, id: id)
+            _ = try await client.cancelAppointment(authToken: token, id: appointment.Id)
             await loadData()
         } catch let error as USError {
             switch error {
@@ -945,133 +584,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    // Returns a valid Avigilon Alta JWT, re-logging in only when the cached token has expired
-    private func fetchAvigilonJWT() async throws -> String {
-        if AvigilonTokenCache.isValid, let cached = AvigilonTokenCache.jwt {
-            return cached
-        }
-
-        guard let url = URL(string: "https://api.openpath.com/auth/login") else {
-            throw DoorAccessError.invalidRequest
-        }
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONSerialization.data(withJSONObject: [
-            "email": DoorConfig.botEmail,
-            "password": DoorConfig.botPassword
-        ])
-
-        let data = try await performDoorRequest(req, context: "Door sign-in")
-        guard let json  = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let inner = json["data"] as? [String: Any],
-              let token = inner["token"] as? String,
-              !token.isEmpty else {
-            throw DoorAccessError.malformedResponse(
-                context: "Door sign-in",
-                details: extractDoorServiceMessage(from: data)
-            )
-        }
-
-        AvigilonTokenCache.jwt = token
-        if let expiresAtStr = inner["expiresAt"] as? String {
-            // Bug fix: Avigilon Alta returns fractional seconds e.g. "2026-05-01T12:00:00.000Z"
-            // Default ISO8601DateFormatter cannot parse the ".000Z" suffix — must add .withFractionalSeconds.
-            // Without this fix, expiresAt is always nil → cache never valid → re-auth every tap.
-            let fmt = ISO8601DateFormatter()
-            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            AvigilonTokenCache.expiresAt = fmt.date(from: expiresAtStr)
-        }
-        return token
-    }
-
-    private func performRemoteUnlock(with jwt: String) async throws {
-        let urlStr = "https://api.openpath.com/api/v1/orgs/\(DoorConfig.orgId)/entries/\(DoorConfig.entryId)/remoteUnlocks"
-        guard let url = URL(string: urlStr) else {
-            throw DoorAccessError.invalidRequest
-        }
-
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue(jwt, forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = "{}".data(using: .utf8)
-
-        _ = try await performDoorRequest(req, context: "Door unlock")
-    }
-
-    private func performDoorRequest(_ request: URLRequest, context: String) async throws -> Data {
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw DoorAccessError.malformedResponse(context: context, details: nil)
-        }
-
-        guard (200...299).contains(http.statusCode) else {
-            let detail = extractDoorServiceMessage(from: data)
-            if let rawBody = String(data: data, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-               !rawBody.isEmpty {
-                print("\(context) failed with HTTP \(http.statusCode): \(rawBody)")
-            } else {
-                print("\(context) failed with HTTP \(http.statusCode) and an empty response body.")
-            }
-            throw DoorAccessError.http(statusCode: http.statusCode, context: context, message: detail)
-        }
-
-        return data
-    }
-
-    private func extractDoorServiceMessage(from data: Data) -> String? {
-        guard !data.isEmpty else { return nil }
-
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let message = flattenDoorServiceMessage(json) {
-            return message
-        }
-
-        if let text = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-           !text.isEmpty {
-            return text
-        }
-
-        return nil
-    }
-
-    private func flattenDoorServiceMessage(_ value: Any) -> String? {
-        switch value {
-        case let text as String:
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? nil : trimmed
-
-        case let dictionary as [String: Any]:
-            for key in ["message", "error", "detail", "details", "description", "error_description"] {
-                if let message = flattenDoorServiceMessage(dictionary[key] as Any) {
-                    return message
-                }
-            }
-
-            for key in ["errors", "data", "response"] {
-                if let message = flattenDoorServiceMessage(dictionary[key] as Any) {
-                    return message
-                }
-            }
-
-            return nil
-
-        case let array as [Any]:
-            let messages = array.compactMap(flattenDoorServiceMessage)
-            return messages.isEmpty ? nil : messages.joined(separator: ", ")
-
-        default:
-            return nil
-        }
-    }
-
-    private func resetAvigilonTokenCache() {
-        AvigilonTokenCache.jwt = nil
-        AvigilonTokenCache.expiresAt = nil
-    }
 }
 
 // MARK: - Preview Helpers

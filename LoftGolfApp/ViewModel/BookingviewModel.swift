@@ -323,15 +323,23 @@ final class BookingViewModel: ObservableObject {
     
     //Cancel an appointment
     func cancelAppointment(_ appointmentId: Int) async -> Bool {
+        return await cancelAppointment(id: appointmentId)
+    }
+
+    func cancelAppointment(_ appointment: Appointment) async -> Bool {
+        await cancelAppointment(id: appointment.Id)
+    }
+
+    private func cancelAppointment(id: Int) async -> Bool {
         guard let token = authToken else {
             showErrorMessage("Not authenticated")
             return false
         }
-        
+
         isLoading = true
-        
+
         do {
-            _ = try await client.cancelAppointment(authToken: token, id: appointmentId)
+            _ = try await client.cancelAppointment(authToken: token, id: id)
             isLoading = false
             
             // Refresh appointments
