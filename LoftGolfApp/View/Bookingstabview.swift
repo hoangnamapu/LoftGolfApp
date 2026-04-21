@@ -177,6 +177,26 @@ struct BookingsTabView: View {
     }
 }
 
+// Top-level so tests can call it directly via @testable import
+func appointmentTimeRange(start: Date, end: Date?) -> String {
+    let timeFormatter = DateFormatter()
+    timeFormatter.dateFormat = "h:mm"
+    let amPmFormatter = DateFormatter()
+    amPmFormatter.dateFormat = "h:mm a"
+
+    if let end = end {
+        let cal = Calendar.current
+        let sameHalf = (cal.component(.hour, from: start) < 12) == (cal.component(.hour, from: end) < 12)
+        if sameHalf {
+            return "\(timeFormatter.string(from: start)) – \(amPmFormatter.string(from: end))"
+        } else {
+            return "\(amPmFormatter.string(from: start)) – \(amPmFormatter.string(from: end))"
+        }
+    } else {
+        return amPmFormatter.string(from: start)
+    }
+}
+
 //Appointment Card
 struct AppointmentCard: View {
     let appointment: Appointment
@@ -300,27 +320,8 @@ struct AppointmentCard: View {
         }
     }
     
-    /// Formats a time range compactly: "9:00 – 10:00 AM" (AM/PM only on the end time)
     private func compactTimeRange(start: Date, end: Date?) -> String {
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "h:mm"
-        let amPmFormatter = DateFormatter()
-        amPmFormatter.dateFormat = "h:mm a"
-
-        if let end = end {
-            // Determine if start and end share the same AM/PM
-            let calendar = Calendar.current
-            let startHour = calendar.component(.hour, from: start)
-            let endHour = calendar.component(.hour, from: end)
-            let sameHalf = (startHour < 12) == (endHour < 12)
-            if sameHalf {
-                return "\(timeFormatter.string(from: start)) – \(amPmFormatter.string(from: end))"
-            } else {
-                return "\(amPmFormatter.string(from: start)) – \(amPmFormatter.string(from: end))"
-            }
-        } else {
-            return amPmFormatter.string(from: start)
-        }
+        appointmentTimeRange(start: start, end: end)
     }
 
     private var statusBadge: some View {
