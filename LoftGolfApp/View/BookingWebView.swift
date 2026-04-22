@@ -111,7 +111,20 @@ struct BookingWKWebView: UIViewRepresentable {
                     var buttons = document.querySelectorAll('input[type=submit], button, a');
                     for (var i = 0; i < buttons.length; i++) {
                         if (buttons[i].textContent.trim().toLowerCase() === 'unlock door') {
-                            buttons[i].scrollIntoView({behavior: 'instant', block: 'center'});
+                            buttons[i].click();
+                            break;
+                        }
+                    }
+                })();
+                """
+                webView.evaluateJavaScript(js, completionHandler: nil)
+            } else {
+                // Auto-click "Open Door" if present (Front Door Entry confirmation page)
+                let js = """
+                (function() {
+                    var buttons = document.querySelectorAll('input[type=submit], button, a');
+                    for (var i = 0; i < buttons.length; i++) {
+                        if (buttons[i].textContent.trim().toLowerCase() === 'open door') {
                             buttons[i].click();
                             break;
                         }
