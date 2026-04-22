@@ -84,18 +84,18 @@ struct AppointmentLogicTests {
     }
 
     @Test @MainActor
-    func activationWindow_noEndTime_seventyFiveMinIn_returnsTrue() {
+    func activationWindow_noEndTime_sixtyMinIn_returnsTrue() {
         let vm = HomeViewModel()
-        // 75 min past start, no EndTime → 1h default + 15-min grace = still open
-        let appt = makeAppointment(startOffset: -75 * 60, endOffset: nil)
+        // 60 min past start, no EndTime → still inside 1h + 15-min grace window
+        let appt = makeAppointment(startOffset: -60 * 60, endOffset: nil)
         #expect(vm.isInActivationWindow(for: appt))
     }
 
     @Test @MainActor
-    func activationWindow_noEndTime_seventySixMinIn_returnsFalse() {
+    func activationWindow_noEndTime_ninetyMinIn_returnsFalse() {
         let vm = HomeViewModel()
-        // 76 min past start → past 1h + 15-min grace
-        let appt = makeAppointment(startOffset: -76 * 60, endOffset: nil)
+        // 90 min past start → well past 1h + 15-min grace (75 min total)
+        let appt = makeAppointment(startOffset: -90 * 60, endOffset: nil)
         #expect(!vm.isInActivationWindow(for: appt))
     }
 
