@@ -86,6 +86,7 @@ struct BookingWKWebView: UIViewRepresentable {
 
     class Coordinator: NSObject, WKNavigationDelegate {
         let parent: BookingWKWebView
+        var didNavigateToTarget = false
 
         init(_ parent: BookingWKWebView) {
             self.parent = parent
@@ -98,12 +99,13 @@ struct BookingWKWebView: UIViewRepresentable {
 
             guard let currentURL = webView.url?.absoluteString else { return }
 
-            if currentURL.contains("remotelogin") {
-                // After remotelogin, redirect to target page
+            if !didNavigateToTarget && !currentURL.contains("customerprofile/appointments") {
+                // First landing after remotelogin redirect — go to target
+                didNavigateToTarget = true
                 if let url = URL(string: parent.targetURL) {
                     webView.load(URLRequest(url: url))
                 }
-            } else if currentURL.contains(parent.targetURL) {
+            } else if currentURL.contains("customerprofile/appointments") {
                 // Scroll to "Upcoming Appointments" section
                 let js = """
                 (function() {
