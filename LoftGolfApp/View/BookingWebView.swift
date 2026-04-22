@@ -106,14 +106,13 @@ struct BookingWKWebView: UIViewRepresentable {
                     webView.load(URLRequest(url: url))
                 }
             } else if currentURL.contains("customerprofile/appointments") {
-                // Scroll to "Upcoming Appointments" section
                 let js = """
                 (function() {
-                    var els = document.querySelectorAll('*');
-                    for (var i = 0; i < els.length; i++) {
-                        if (els[i].children.length === 0 &&
-                            els[i].textContent.trim() === 'Upcoming Appointments') {
-                            els[i].scrollIntoView({behavior: 'instant', block: 'start'});
+                    var buttons = document.querySelectorAll('input[type=submit], button, a');
+                    for (var i = 0; i < buttons.length; i++) {
+                        if (buttons[i].textContent.trim().toLowerCase() === 'unlock door') {
+                            buttons[i].scrollIntoView({behavior: 'instant', block: 'center'});
+                            buttons[i].click();
                             break;
                         }
                     }
