@@ -86,6 +86,7 @@ struct BookingWKWebView: UIViewRepresentable {
 
     class Coordinator: NSObject, WKNavigationDelegate {
         let parent: BookingWKWebView
+        var didNavigateToTarget = false
 
         init(_ parent: BookingWKWebView) {
             self.parent = parent
@@ -96,12 +97,41 @@ struct BookingWKWebView: UIViewRepresentable {
                 self.parent.isLoading = false
             }
 
-            // After remotelogin completes, redirect to the configured target page
             guard let currentURL = webView.url?.absoluteString else { return }
-            if currentURL.contains("remotelogin") {
+
+            if !didNavigateToTarget && !currentURL.contains("customerprofile/appointments") {
+                // First landing after remotelogin redirect — go to target
+                didNavigateToTarget = true
                 if let url = URL(string: parent.targetURL) {
                     webView.load(URLRequest(url: url))
                 }
+            } else if currentURL.contains("customerprofile/appointments") {
+                let js = """
+                (function() {
+                    var buttons = document.querySelectorAll('input[type=submit], button, a');
+                    for (var i = 0; i < buttons.length; i++) {
+                        if (buttons[i].textContent.trim().toLowerCase() === 'unlock door') {
+                            buttons[i].click();
+                            break;
+                        }
+                    }
+                })();
+                """
+                webView.evaluateJavaScript(js, completionHandler: nil)
+            } else {
+                // Auto-click "Open Door" if present (Front Door Entry confirmation page)
+                let js = """
+                (function() {
+                    var buttons = document.querySelectorAll('input[type=submit], button, a');
+                    for (var i = 0; i < buttons.length; i++) {
+                        if (buttons[i].textContent.trim().toLowerCase() === 'open door') {
+                            buttons[i].click();
+                            break;
+                        }
+                    }
+                })();
+                """
+                webView.evaluateJavaScript(js, completionHandler: nil)
             }
         }
 

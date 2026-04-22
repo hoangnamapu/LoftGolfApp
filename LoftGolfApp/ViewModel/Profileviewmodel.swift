@@ -39,6 +39,7 @@ struct UserProfile {
 
 struct BookingHistory: Identifiable {
     let id: Int
+    let masterAppointmentId: Int?
     let description: String
     let startTime: Date
     let endTime: Date?
@@ -46,6 +47,20 @@ struct BookingHistory: Identifiable {
     let serviceName: String?
     let price: Decimal?
     let status: AppointmentStatus
+
+    var cancellationCandidateIds: [Int] {
+        var ids: [Int] = []
+
+        if let masterAppointmentId, masterAppointmentId > 0 {
+            ids.append(masterAppointmentId)
+        }
+
+        if !ids.contains(id) {
+            ids.append(id)
+        }
+
+        return ids
+    }
 }
 
 enum GenderOption: String, CaseIterable, Identifiable {
@@ -299,6 +314,7 @@ final class ProfileViewModel: ObservableObject {
             
             return BookingHistory(
                 id: id,
+                masterAppointmentId: apt["MasterAppointmentID"] as? Int,
                 description: apt["Description"] as? String ?? "",
                 startTime: startTime,
                 endTime: parseDate(apt["EndTime"] as? String),
@@ -384,17 +400,19 @@ final class ProfileViewModel: ObservableObject {
     }
     
     // MARK: - Appointment Actions
-    func cancelAppointment(_ appointmentId: Int) async {
+    func cancelAppointment(_ booking: BookingHistory) async -> Bool {
         guard let token = authToken else {
             errorMessage = "Not authenticated"
-            return
+            return false
         }
 
         do {
-            _ = try await client.cancelAppointment(authToken: token, id: appointmentId)
+            _ = try await client.cancelAppointment(authToken: token, id: booking.id)
             await loadProfile()
+            return true
         } catch {
             errorMessage = "Failed to cancel appointment: \(error.localizedDescription)"
+            return false
         }
     }
     
@@ -470,6 +488,7 @@ extension ProfileViewModel {
         vm.upcomingBookings = [
             BookingHistory(
                 id: 1,
+                masterAppointmentId: nil,
                 description: "Golf Simulator - Bay 1",
                 startTime: Date().addingTimeInterval(2*24*60*60),
                 endTime: Date().addingTimeInterval(2*24*60*60 + 60*60),

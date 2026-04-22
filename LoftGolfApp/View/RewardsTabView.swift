@@ -44,7 +44,6 @@ struct RewardsTabView: View {
                             .padding(.top, 20)
 
                         loyaltyPointsCard
-                        ladderRewardsCard
                     }
                     .padding(.horizontal)
                     .padding(.top, 16)
@@ -128,76 +127,6 @@ struct RewardsTabView: View {
     }
 
 
-    // MARK: - Ladder Rewards
-    private var ladderRewardsCard: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Image(systemName: "gift.fill")
-                    .foregroundStyle(.green)
-
-                Text("Earn Rewards")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white)
-
-                Spacer()
-            }
-
-            Spacer(minLength: 10)
-
-            VStack(spacing: 10) {
-                Text("Coming Soon")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white)
-
-                Image(systemName: "clock.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.white)
-            }
-            .frame(maxWidth: .infinity)
-            .multilineTextAlignment(.center)
-
-            Spacer(minLength: 10)
-        }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .background(Color(.systemGray6).opacity(0.15))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-        )
-    }
-
-    private func ladderRow(title: String, isDone: Bool, link: String? = nil) -> some View {
-        HStack {
-
-            if let link = link, let url = URL(string: link) {
-                Link(destination: url) {
-                    HStack(spacing: 4) {
-                        Text(title)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.blue)
-
-                        Image(systemName: "arrow.up.right.square")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.blue)
-                    }
-                }
-            } else {
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-
-            Spacer()
-
-            Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isDone ? .green : .gray)
-                .font(.system(size: 20))
-                .frame(width: 22)
-        }
-        .padding(.vertical, 6)
-    }
 }
 
 #Preview("0 Points") {
