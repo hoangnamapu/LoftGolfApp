@@ -9,7 +9,9 @@
 /* Begin PBXBuildFile section */
 		BAB78B312E9B6B1C0059A7DE /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BAB78B302E9B6B1C0059A7DE /* FirebaseAuth */; };
 		BAB78B332E9B6B1C0059A7DE /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = BAB78B322E9B6B1C0059A7DE /* FirebaseFirestore */; };
-		BAB78B352E9C23A90059A7DE /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = BAB78B342E9C23A90059A7DE /* GoogleService-Info.plist */; };
+		D4493EF92F9FDA5D00B4FB8B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = D4493EF82F9FDA5D00B4FB8B /* GoogleService-Info.plist */; };
+		D4493EFA2F9FDA5D00B4FB8B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = D4493EF82F9FDA5D00B4FB8B /* GoogleService-Info.plist */; };
+		D4493EFB2F9FDA5D00B4FB8B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = D4493EF82F9FDA5D00B4FB8B /* GoogleService-Info.plist */; };
 		D4BE30912F8C3B9A00A37BC4 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = D4BE30902F8C3B9A00A37BC4 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
@@ -44,10 +46,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		BAB78B342E9C23A90059A7DE /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		BABC71D42E99C23300DC35B9 /* LoftGolfApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LoftGolfApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BABC71E42E99C23400DC35B9 /* LoftGolfAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LoftGolfAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BABC71EE2E99C23400DC35B9 /* LoftGolfAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LoftGolfAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D4493EF82F9FDA5D00B4FB8B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -117,7 +119,7 @@
 				BABC71F12E99C23400DC35B9 /* LoftGolfAppUITests */,
 				BAEF7E0C2E9A734700A2025E /* Frameworks */,
 				BABC71D52E99C23300DC35B9 /* Products */,
-				BAB78B342E9C23A90059A7DE /* GoogleService-Info.plist */,
+				D4493EF82F9FDA5D00B4FB8B /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -265,7 +267,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BAB78B352E9C23A90059A7DE /* GoogleService-Info.plist in Resources */,
+				D4493EF92F9FDA5D00B4FB8B /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -273,6 +275,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D4493EFA2F9FDA5D00B4FB8B /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -280,6 +283,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D4493EFB2F9FDA5D00B4FB8B /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

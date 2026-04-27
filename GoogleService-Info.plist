@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyCjVMYkF7jB-QbzeMuGdleHLsVvcMkRUWc</string>
+	<string>AIzaSyDuWcEArwwulFQasEA_5_q8mkg5bfmcx2I</string>
 	<key>GCM_SENDER_ID</key>
-	<string>110945424851</string>
+	<string>518703929104</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>LoftGolf.LoftGolfApp</string>
 	<key>PROJECT_ID</key>
-	<string>loftgolfapp</string>
+	<string>loftgolfapp-9605e</string>
 	<key>STORAGE_BUCKET</key>
-	<string>loftgolfapp.firebasestorage.app</string>
+	<string>loftgolfapp-9605e.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:110945424851:ios:57334e03b038da3fbe8b26</string>
+	<string>1:518703929104:ios:3fd0463215a7af60187795</string>
 </dict>
 </plist>
