@@ -8,7 +8,6 @@
 import Foundation
 import FirebaseMessaging
 import FirebaseFirestore
-import FirebaseAuth
 import UserNotifications
 import UIKit
 
@@ -41,10 +40,7 @@ final class NotificationManager: NSObject, ObservableObject {
 
             if granted {
                 print("[PushDebug] Calling registerForRemoteNotifications")
-
-                await MainActor.run {
-                    UIApplication.shared.registerForRemoteNotifications()
-                }
+                UIApplication.shared.registerForRemoteNotifications()
             } else {
                 print("[PushDebug] User denied notification permission")
             }
@@ -61,24 +57,23 @@ final class NotificationManager: NSObject, ObservableObject {
         print("[PushDebug] saveFCMToken called")
         print("[PushDebug] FCM token value: \(token)")
 
-        guard let uid = Auth.auth().currentUser?.uid else {
-            print("[PushDebug] No FirebaseAuth currentUser, token not saved to Firestore")
-            return
-        }
-
         do {
             try await Firestore.firestore()
-                .collection("users")
-                .document(uid)
+                .collection("debug_fcm_tokens")
+                .document("latest_ios_token")
                 .setData([
                     "fcmToken": token,
                     "platform": "ios",
+                    "deviceName": UIDevice.current.name,
+                    "systemName": UIDevice.current.systemName,
+                    "systemVersion": UIDevice.current.systemVersion,
+                    "model": UIDevice.current.model,
                     "updatedAt": FieldValue.serverTimestamp()
                 ], merge: true)
 
-            print("[PushDebug] FCM token saved for FirebaseAuth uid: \(uid)")
+            print("[PushDebug] FCM token saved to Firestore: debug_fcm_tokens/latest_ios_token")
         } catch {
-            print("[PushDebug] Failed to save token: \(error)")
+            print("[PushDebug] Failed to save FCM token to Firestore: \(error)")
         }
     }
 
@@ -87,7 +82,8 @@ final class NotificationManager: NSObject, ObservableObject {
     func checkPermissionStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         permissionGranted = settings.authorizationStatus == .authorized
+
         print("[NotificationManager] Permission status: \(settings.authorizationStatus.rawValue)")
-        // 0=notDetermined, 1=denied, 2=authorized
+        // 0 = notDetermined, 1 = denied, 2 = authorized
     }
 }
