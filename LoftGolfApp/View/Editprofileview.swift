@@ -148,8 +148,14 @@ struct SettingsView: View {
                         Text("Push Notifications")
                         Spacer()
                         if notificationManager.permissionGranted {
-                            Toggle("", isOn: .constant(true))
-                                .disabled(true)
+                            Button("Manage") {
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.gray)
+                            .controlSize(.small)
                         } else {
                             Button("Enable") {
                                 Task {

@@ -4,6 +4,7 @@ struct RootView: View {
     @State private var isAuthenticated = false
     @State private var authToken: String?
     @AppStorage("biometricEnabled") private var biometricEnabled = false
+    @EnvironmentObject private var notificationManager: NotificationManager
 
     var body: some View {
         Group {
@@ -25,6 +26,13 @@ struct RootView: View {
                   KeychainHelper.readString(key: "loft.savedUsername") != nil
             else { return }
             Task { await attemptBiometricLogin() }
+        }
+        .onChange(of: isAuthenticated) { _, authenticated in
+            if authenticated {
+                Task {
+                    await notificationManager.requestPermission()
+                }
+            }
         }
     }
 

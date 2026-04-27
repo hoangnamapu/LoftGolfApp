@@ -58,5 +58,7 @@ final class NotificationManager: NSObject, ObservableObject {
     func checkPermissionStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         permissionGranted = settings.authorizationStatus == .authorized
+        print("[NotificationManager] Permission status: \(settings.authorizationStatus.rawValue)")
+        // 0=notDetermined, 1=denied, 2=authorized
     }
 }
