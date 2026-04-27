@@ -26,14 +26,30 @@ final class NotificationManager: NSObject, ObservableObject {
 
     func requestPermission() async {
         let center = UNUserNotificationCenter.current()
+
         do {
+            let settingsBefore = await center.notificationSettings()
+            print("[PushDebug] Permission status before request: \(settingsBefore.authorizationStatus.rawValue)")
+
             let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
             permissionGranted = granted
+
+            print("[PushDebug] Permission granted: \(granted)")
+
+            let settingsAfter = await center.notificationSettings()
+            print("[PushDebug] Permission status after request: \(settingsAfter.authorizationStatus.rawValue)")
+
             if granted {
-                UIApplication.shared.registerForRemoteNotifications()
+                print("[PushDebug] Calling registerForRemoteNotifications")
+
+                await MainActor.run {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+            } else {
+                print("[PushDebug] User denied notification permission")
             }
         } catch {
-            print("[NotificationManager] Permission error: \(error)")
+            print("[PushDebug] Permission error: \(error)")
         }
     }
 
@@ -41,15 +57,28 @@ final class NotificationManager: NSObject, ObservableObject {
 
     func saveFCMToken(_ token: String) async {
         self.fcmToken = token
-        guard let uid = Auth.auth().currentUser?.uid else { return }
+
+        print("[PushDebug] saveFCMToken called")
+        print("[PushDebug] FCM token value: \(token)")
+
+        guard let uid = Auth.auth().currentUser?.uid else {
+            print("[PushDebug] No FirebaseAuth currentUser, token not saved to Firestore")
+            return
+        }
+
         do {
             try await Firestore.firestore()
                 .collection("users")
                 .document(uid)
-                .setData(["fcmToken": token, "platform": "ios"], merge: true)
-            print("[NotificationManager] FCM token saved for uid: \(uid)")
+                .setData([
+                    "fcmToken": token,
+                    "platform": "ios",
+                    "updatedAt": FieldValue.serverTimestamp()
+                ], merge: true)
+
+            print("[PushDebug] FCM token saved for FirebaseAuth uid: \(uid)")
         } catch {
-            print("[NotificationManager] Failed to save token: \(error)")
+            print("[PushDebug] Failed to save token: \(error)")
         }
     }
 

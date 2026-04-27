@@ -26,14 +26,25 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
+        let apnsToken = deviceToken.map { String(format: "%02x", $0) }.joined()
+        print("[PushDebug] APNs token: \(apnsToken)")
+
         Messaging.messaging().apnsToken = deviceToken
+
+        Messaging.messaging().token { token, error in
+            if let error = error {
+                print("[PushDebug] FCM token error after APNs token set: \(error)")
+            } else {
+                print("[PushDebug] FCM token after APNs token set: \(token ?? "nil")")
+            }
+        }
     }
 
     func application(
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
-        print("[AppDelegate] APNs registration failed: \(error)")
+        print("[PushDebug] APNs registration failed: \(error)")
     }
 }
 
@@ -41,8 +52,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        guard let token = fcmToken else { return }
-        print("[AppDelegate] FCM token: \(token)")
+        guard let token = fcmToken else {
+            print("[PushDebug] FCM registration token is nil")
+            return
+        }
+
+        print("[PushDebug] FCM registration token from delegate: \(token)")
+
         Task {
             await NotificationManager.shared.saveFCMToken(token)
         }

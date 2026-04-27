@@ -69,7 +69,7 @@ struct MainTabView: View {
             // Tab 4: FAQ / Videos
             FaqVideosTabView()
                 .tabItem {
-                    Label("FAQ/Videos", systemImage: "questionmark.circle")
+                    Label("FAQ/Social", systemImage: "questionmark.circle")
                 }
                 .tag(3)
 

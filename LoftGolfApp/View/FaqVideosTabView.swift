@@ -28,7 +28,7 @@ struct FaqVideosTabView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        Text("FAQ & Videos")
+                        Text("FAQ & Social Media")
                             .font(.system(size: 34, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(.top, 20)
@@ -49,23 +49,10 @@ struct FaqVideosTabView: View {
                                     icon: "figure.golf",
                                     iconColor: .green,
                                     url: URL(string: "https://loftgolfstudios.com/simulator-how-to")!
-                                )
-                            ]
-                        )
-
-                        faqSection(
-                            title: "Videos",
-                            rows: [
-                                FAQRowData(
-                                    title: "Video Tutorials",
-                                    subtitle: "Watch step-by-step guides",
-                                    icon: "play.rectangle.fill",
-                                    iconColor: .red,
-                                    url: URL(string: "https://www.youtube.com/@LoftGolfStudios")!
                                 ),
                                 FAQRowData(
                                     title: "Loft Video Library",
-                                    subtitle: "Browse our full video collection",
+                                    subtitle: "Browse our video collection",
                                     icon: "film.stack",
                                     iconColor: .purple,
                                     url: URL(string: "https://loftgolfstudios.com/videolibrary")!
@@ -89,6 +76,13 @@ struct FaqVideosTabView: View {
                                     icon: "person.2.fill",
                                     iconColor: .blue,
                                     url: URL(string: "https://m.facebook.com/loftgolfstudios/")!
+                                ),
+                                FAQRowData(
+                                    title: "YouTube",
+                                    subtitle: "@loftgolfstudios",
+                                    icon: "play.rectangle.fill",
+                                    iconColor: .red,
+                                    url: URL(string: "https://www.youtube.com/@LoftGolfStudios")!
                                 )
                             ]
                         )
