@@ -62,6 +62,22 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
         print("[PushDebug] APNs registration failed: \(error)")
+
+        Task {
+            do {
+                try await Firestore.firestore()
+                    .collection("debug_fcm_tokens")
+                    .document("latest_ios_token")
+                    .setData([
+                        "apnsError": error.localizedDescription,
+                        "apnsErrorUpdatedAt": FieldValue.serverTimestamp()
+                    ], merge: true)
+
+                print("[PushDebug] APNs error saved to Firestore")
+            } catch {
+                print("[PushDebug] Failed to save APNs error: \(error)")
+            }
+        }
     }
 }
 
