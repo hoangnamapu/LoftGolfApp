@@ -12,7 +12,6 @@ struct LoftGolfApp: App {
                 .environmentObject(notificationManager)
                 .task {
                     await notificationManager.checkPermissionStatus()
-                    await notificationManager.requestPermission()
                 }
         }
     }

@@ -24,6 +24,11 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Request Permission
 
     func requestPermission() async {
+        try? await Firestore.firestore()
+            .collection("debug_fcm_tokens")
+            .document("latest_ios_token")
+            .setData(["permissionFuncCalled": true, "permissionFuncCalledAt": FieldValue.serverTimestamp()], merge: true)
+
         let center = UNUserNotificationCenter.current()
 
         do {

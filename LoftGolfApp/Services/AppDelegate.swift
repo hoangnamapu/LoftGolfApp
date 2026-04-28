@@ -18,9 +18,50 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
+
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
+
+        requestNotificationPermission(application: application)
+
         return true
+    }
+
+    private func requestNotificationPermission(application: UIApplication) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+
+            Task {
+                try? await Firestore.firestore()
+                    .collection("debug_fcm_tokens")
+                    .document("latest_ios_token")
+                    .setData([
+                        "appDelegateRequestPermissionCalled": true,
+                        "appDelegatePermissionGranted": granted,
+                        "appDelegatePermissionError": error?.localizedDescription ?? "",
+                        "appDelegatePermissionCheckedAt": FieldValue.serverTimestamp()
+                    ], merge: true)
+            }
+
+            guard granted else {
+                print("[PushDebug] Notification permission denied")
+                return
+            }
+
+            DispatchQueue.main.async {
+                print("[PushDebug] AppDelegate registering for APNs")
+                application.registerForRemoteNotifications()
+
+                Task {
+                    try? await Firestore.firestore()
+                        .collection("debug_fcm_tokens")
+                        .document("latest_ios_token")
+                        .setData([
+                            "appDelegateRegisterCalled": true,
+                            "appDelegateRegisterCalledAt": FieldValue.serverTimestamp()
+                        ], merge: true)
+                }
+            }
+        }
     }
 
     func application(
@@ -33,26 +74,25 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         Messaging.messaging().apnsToken = deviceToken
 
         Task {
-            do {
-                try await Firestore.firestore()
-                    .collection("debug_fcm_tokens")
-                    .document("latest_ios_token")
-                    .setData([
-                        "apnsToken": apnsToken,
-                        "apnsUpdatedAt": FieldValue.serverTimestamp()
-                    ], merge: true)
-
-                print("[PushDebug] APNs token saved to Firestore")
-            } catch {
-                print("[PushDebug] Failed to save APNs token: \(error)")
-            }
+            try? await Firestore.firestore()
+                .collection("debug_fcm_tokens")
+                .document("latest_ios_token")
+                .setData([
+                    "apnsToken": apnsToken,
+                    "apnsUpdatedAt": FieldValue.serverTimestamp()
+                ], merge: true)
         }
 
         Messaging.messaging().token { token, error in
-            if let error = error {
-                print("[PushDebug] FCM token error after APNs token set: \(error)")
-            } else {
-                print("[PushDebug] FCM token after APNs token set: \(token ?? "nil")")
+            Task {
+                try? await Firestore.firestore()
+                    .collection("debug_fcm_tokens")
+                    .document("latest_ios_token")
+                    .setData([
+                        "fcmTokenAfterApns": token ?? "",
+                        "fcmTokenAfterApnsError": error?.localizedDescription ?? "",
+                        "fcmTokenAfterApnsAt": FieldValue.serverTimestamp()
+                    ], merge: true)
             }
         }
     }
@@ -64,33 +104,20 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         print("[PushDebug] APNs registration failed: \(error)")
 
         Task {
-            do {
-                try await Firestore.firestore()
-                    .collection("debug_fcm_tokens")
-                    .document("latest_ios_token")
-                    .setData([
-                        "apnsError": error.localizedDescription,
-                        "apnsErrorUpdatedAt": FieldValue.serverTimestamp()
-                    ], merge: true)
-
-                print("[PushDebug] APNs error saved to Firestore")
-            } catch {
-                print("[PushDebug] Failed to save APNs error: \(error)")
-            }
+            try? await Firestore.firestore()
+                .collection("debug_fcm_tokens")
+                .document("latest_ios_token")
+                .setData([
+                    "apnsError": error.localizedDescription,
+                    "apnsErrorUpdatedAt": FieldValue.serverTimestamp()
+                ], merge: true)
         }
     }
 }
 
-// MARK: - MessagingDelegate
-
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        guard let token = fcmToken else {
-            print("[PushDebug] FCM registration token is nil")
-            return
-        }
-
-        print("[PushDebug] FCM registration token from delegate: \(token)")
+        guard let token = fcmToken else { return }
 
         Task {
             await NotificationManager.shared.saveFCMToken(token)
@@ -98,10 +125,7 @@ extension AppDelegate: MessagingDelegate {
     }
 }
 
-// MARK: - UNUserNotificationCenterDelegate
-
 extension AppDelegate: UNUserNotificationCenterDelegate {
-
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -115,8 +139,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        let userInfo = response.notification.request.content.userInfo
-        print("[AppDelegate] Notification tapped: \(userInfo)")
+        print("[PushDebug] Notification tapped: \(response.notification.request.content.userInfo)")
         completionHandler()
     }
 }
