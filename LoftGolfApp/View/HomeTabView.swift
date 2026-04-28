@@ -480,9 +480,18 @@ class HomeViewModel: ObservableObject {
     @Published var currentProgressPoints = 0
     @Published var anytimeCredits = 0
     @Published var errorMessage: String?
+    @Published private var currentTime = Date()
 
     private let client = UScheduleClient()
     private var authToken: String?
+    private var timer: Timer?
+
+    private func startTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async { self?.currentTime = Date() }
+        }
+    }
 
     var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -520,11 +529,12 @@ class HomeViewModel: ObservableObject {
                         return false
                     }
                     let now = Date()
+                    let gracePeriod: TimeInterval = 15 * 60
                     if let endStr = appointment.EndTime,
                        let endTime = UScheduleClient.parseAPIDate(endStr) {
-                        return endTime > now && appointment.StatusID == 1
+                        return endTime.addingTimeInterval(gracePeriod) > now && appointment.StatusID == 1
                     }
-                    return startTime > now && appointment.StatusID == 1
+                    return startTime.addingTimeInterval(3600 + gracePeriod) > now && appointment.StatusID == 1
                 }
                 .sorted { a, b in
                     guard let aTime = UScheduleClient.parseAPIDate(a.StartTime),
@@ -536,11 +546,13 @@ class HomeViewModel: ObservableObject {
 
             if !Task.isCancelled {
                 isLoading = false
+                startTimer()
             }
         } catch {
             print("Failed to load home data: \(error)")
             if !Task.isCancelled {
                 isLoading = false
+                startTimer()
             }
         }
     }
