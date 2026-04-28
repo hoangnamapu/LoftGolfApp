@@ -33,19 +33,54 @@ final class NotificationManager: NSObject, ObservableObject {
             let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
             permissionGranted = granted
 
-            print("[PushDebug] Permission granted: \(granted)")
-
             let settingsAfter = await center.notificationSettings()
+            print("[PushDebug] Permission granted: \(granted)")
             print("[PushDebug] Permission status after request: \(settingsAfter.authorizationStatus.rawValue)")
 
-            if granted {
-                print("[PushDebug] Calling registerForRemoteNotifications")
+            let canRegister =
+                settingsAfter.authorizationStatus == .authorized ||
+                settingsAfter.authorizationStatus == .provisional ||
+                settingsAfter.authorizationStatus == .ephemeral
+
+            if canRegister {
+                print("[PushDebug] Registering for APNs remote notifications")
+
                 UIApplication.shared.registerForRemoteNotifications()
+
+                try await Firestore.firestore()
+                    .collection("debug_fcm_tokens")
+                    .document("latest_ios_token")
+                    .setData([
+                        "registerForRemoteNotificationsCalled": true,
+                        "registerCalledAt": FieldValue.serverTimestamp(),
+                        "authorizationStatus": settingsAfter.authorizationStatus.rawValue
+                    ], merge: true)
             } else {
-                print("[PushDebug] User denied notification permission")
+                print("[PushDebug] Notification permission not authorized")
+
+                try await Firestore.firestore()
+                    .collection("debug_fcm_tokens")
+                    .document("latest_ios_token")
+                    .setData([
+                        "registerForRemoteNotificationsCalled": false,
+                        "authorizationStatus": settingsAfter.authorizationStatus.rawValue,
+                        "registerSkippedAt": FieldValue.serverTimestamp()
+                    ], merge: true)
             }
         } catch {
             print("[PushDebug] Permission error: \(error)")
+
+            do {
+                try await Firestore.firestore()
+                    .collection("debug_fcm_tokens")
+                    .document("latest_ios_token")
+                    .setData([
+                        "permissionError": error.localizedDescription,
+                        "permissionErrorAt": FieldValue.serverTimestamp()
+                    ], merge: true)
+            } catch {
+                print("[PushDebug] Failed to save permission error: \(error)")
+            }
         }
     }
 
