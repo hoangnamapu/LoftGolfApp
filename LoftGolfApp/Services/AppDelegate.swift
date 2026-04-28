@@ -8,6 +8,7 @@
 import UIKit
 import FirebaseCore
 import FirebaseMessaging
+import FirebaseFirestore
 import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -30,6 +31,22 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         print("[PushDebug] APNs token: \(apnsToken)")
 
         Messaging.messaging().apnsToken = deviceToken
+
+        Task {
+            do {
+                try await Firestore.firestore()
+                    .collection("debug_fcm_tokens")
+                    .document("latest_ios_token")
+                    .setData([
+                        "apnsToken": apnsToken,
+                        "apnsUpdatedAt": FieldValue.serverTimestamp()
+                    ], merge: true)
+
+                print("[PushDebug] APNs token saved to Firestore")
+            } catch {
+                print("[PushDebug] Failed to save APNs token: \(error)")
+            }
+        }
 
         Messaging.messaging().token { token, error in
             if let error = error {
