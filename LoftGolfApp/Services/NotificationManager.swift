@@ -94,9 +94,32 @@ final class NotificationManager: NSObject, ObservableObject {
     func saveFCMToken(_ token: String) async {
         self.fcmToken = token
 
-        try? await Task.detached {
+        do {
             try await Messaging.messaging().subscribe(toTopic: "all_users")
-        }.value
+
+            try await Firestore.firestore()
+                .collection("debug_fcm_tokens")
+                .document("latest_ios_token")
+                .setData([
+                    "topicSubscribed": true,
+                    "topicName": "all_users",
+                    "topicSubscribedAt": FieldValue.serverTimestamp()
+                ], merge: true)
+
+            print("[PushDebug] Successfully subscribed to topic: all_users")
+        } catch {
+            try? await Firestore.firestore()
+                .collection("debug_fcm_tokens")
+                .document("latest_ios_token")
+                .setData([
+                    "topicSubscribed": false,
+                    "topicName": "all_users",
+                    "topicSubscribeError": error.localizedDescription,
+                    "topicSubscribeErrorAt": FieldValue.serverTimestamp()
+                ], merge: true)
+
+            print("[PushDebug] Failed to subscribe to topic all_users: \(error)")
+        }
 
         print("[PushDebug] saveFCMToken called")
         print("[PushDebug] FCM token value: \(token)")
