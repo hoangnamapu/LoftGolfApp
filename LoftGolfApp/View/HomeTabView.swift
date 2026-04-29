@@ -515,12 +515,14 @@ class HomeViewModel: ObservableObject {
             if Task.isCancelled { return }
             let customer = try await client.customer(authToken: token)
             self.customerName = customer.FirstName
+            await NotificationManager.shared.setCustomerID(String(customer.Id))
             let loyaltyPoints = customer.LoyaltyPointTotal ?? 0
             self.currentProgressPoints = loyaltyPoints
             self.anytimeCredits = 0
 
             if Task.isCancelled { return }
             let appointments = try await client.appointments(authToken: token)
+            print("[DEBUG] First appointment customerID:", appointments.first?.CustomerID ?? "nil")
 
             self.upcomingAppointments = appointments
                 .filter { appointment in

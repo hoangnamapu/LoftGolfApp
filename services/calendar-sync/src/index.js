@@ -82,4 +82,14 @@ app.listen(port, () => {
   console.log(`calendar-sync listening on ${port}`);
   const { startPoller } = require("./poller");
   startPoller(syncBooking);
+
+  const { startReminder } = require("./reminder");
+  let reminderAuthKey = null;
+  startReminder(async () => {
+  if (!reminderAuthKey) {
+    	const { impersonate } = require("./uschedule");
+    	reminderAuthKey = await impersonate(require("./config").uscheduleImpersonateEmail);
+  }
+  return reminderAuthKey;
+});
 });

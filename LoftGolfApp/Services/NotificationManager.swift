@@ -18,15 +18,22 @@ final class NotificationManager: NSObject, ObservableObject {
 
     @Published var permissionGranted: Bool = false
     @Published var fcmToken: String? = nil
+    var customerID: String? = nil
 
     private override init() { super.init() }
-
+    func setCustomerID(_ id: String) {
+        self.customerID = id
+        if let token = fcmToken {
+            Task { await saveFCMToken(token) }
+        }
+    }
+    
     // MARK: - Request Permission
 
     func requestPermission() async {
         try? await Firestore.firestore()
-            .collection("debug_fcm_tokens")
-            .document("latest_ios_token")
+            .collection("fcm_tokens")
+            .document(customerID ?? "unknown")
             .setData(["permissionFuncCalled": true, "permissionFuncCalledAt": FieldValue.serverTimestamp()], merge: true)
 
         let center = UNUserNotificationCenter.current()
@@ -53,8 +60,8 @@ final class NotificationManager: NSObject, ObservableObject {
                 UIApplication.shared.registerForRemoteNotifications()
 
                 try await Firestore.firestore()
-                    .collection("debug_fcm_tokens")
-                    .document("latest_ios_token")
+                    .collection("fcm_tokens")
+                    .document(customerID ?? "unknown")
                     .setData([
                         "registerForRemoteNotificationsCalled": true,
                         "registerCalledAt": FieldValue.serverTimestamp(),
@@ -64,8 +71,8 @@ final class NotificationManager: NSObject, ObservableObject {
                 print("[PushDebug] Notification permission not authorized")
 
                 try await Firestore.firestore()
-                    .collection("debug_fcm_tokens")
-                    .document("latest_ios_token")
+                    .collection("fcm_tokens")
+                    .document(customerID ?? "unknown")
                     .setData([
                         "registerForRemoteNotificationsCalled": false,
                         "authorizationStatus": settingsAfter.authorizationStatus.rawValue,
@@ -77,8 +84,8 @@ final class NotificationManager: NSObject, ObservableObject {
 
             do {
                 try await Firestore.firestore()
-                    .collection("debug_fcm_tokens")
-                    .document("latest_ios_token")
+                    .collection("fcm_tokens")
+                    .document(customerID ?? "unknown")
                     .setData([
                         "permissionError": error.localizedDescription,
                         "permissionErrorAt": FieldValue.serverTimestamp()
@@ -98,8 +105,8 @@ final class NotificationManager: NSObject, ObservableObject {
             try await Messaging.messaging().subscribe(toTopic: "all_users")
 
             try await Firestore.firestore()
-                .collection("debug_fcm_tokens")
-                .document("latest_ios_token")
+                .collection("fcm_tokens")
+                .document(customerID ?? "unknown")
                 .setData([
                     "topicSubscribed": true,
                     "topicName": "all_users",
@@ -109,8 +116,8 @@ final class NotificationManager: NSObject, ObservableObject {
             print("[PushDebug] Successfully subscribed to topic: all_users")
         } catch {
             try? await Firestore.firestore()
-                .collection("debug_fcm_tokens")
-                .document("latest_ios_token")
+                .collection("fcm_tokens")
+                .document(customerID ?? "unknown")
                 .setData([
                     "topicSubscribed": false,
                     "topicName": "all_users",
@@ -126,8 +133,8 @@ final class NotificationManager: NSObject, ObservableObject {
 
         do {
             try await Firestore.firestore()
-                .collection("debug_fcm_tokens")
-                .document("latest_ios_token")
+                .collection("fcm_tokens")
+                .document(customerID ?? "unknown")
                 .setData([
                     "fcmToken": token,
                     "platform": "ios",
