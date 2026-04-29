@@ -94,6 +94,10 @@ final class NotificationManager: NSObject, ObservableObject {
     func saveFCMToken(_ token: String) async {
         self.fcmToken = token
 
+        try? await Task.detached {
+            try await Messaging.messaging().subscribe(toTopic: "all_users")
+        }.value
+
         print("[PushDebug] saveFCMToken called")
         print("[PushDebug] FCM token value: \(token)")
 
