@@ -43,21 +43,24 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             // Tab 1: Home
-            HomeTabView(authToken: authToken)
+            HomeTabView(
+                authToken: authToken,
+                selectedTab: $selectedTab
+            )
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
                 .tag(0)
 
             // Tab 2: Rewards
-            RewardsTabView()
+            RewardsTabView(authToken: authToken)
                 .tabItem {
                     Label("Rewards", systemImage: "gift.fill")
                 }
                 .tag(1)
 
             // Tab 3: Bookings
-            BookingsTabView(authToken: authToken)
+            BookingWebView(authToken: authToken, showNavBar: false)
                 .tabItem {
                     Label("Bookings", systemImage: "calendar")
                 }
@@ -66,7 +69,7 @@ struct MainTabView: View {
             // Tab 4: FAQ / Videos
             FaqVideosTabView()
                 .tabItem {
-                    Label("FAQ/Videos", systemImage: "questionmark.circle")
+                    Label("FAQ/Social", systemImage: "questionmark.circle")
                 }
                 .tag(3)
 

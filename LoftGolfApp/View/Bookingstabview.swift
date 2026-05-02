@@ -69,12 +69,7 @@ struct BookingsTabView: View {
                 await viewModel.loadAppointments()
             }
             .sheet(isPresented: $showNewBooking) {
-                NewBookingView(authToken: authToken) {
-                    // On booking complete, refresh list
-                    Task {
-                        await viewModel.loadAppointments()
-                    }
-                }
+                BookingWebView(authToken: authToken)
             }
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK", role: .cancel) {}
@@ -139,7 +134,7 @@ struct BookingsTabView: View {
                         appointment: appointment,
                         onCancel: {
                             Task {
-                                await viewModel.cancelAppointment(appointment.Id)
+                                await viewModel.cancelAppointment(appointment)
                             }
                         }
                     )
@@ -182,6 +177,26 @@ struct BookingsTabView: View {
     }
 }
 
+// Top-level so tests can call it directly via @testable import
+func appointmentTimeRange(start: Date, end: Date?) -> String {
+    let timeFormatter = DateFormatter()
+    timeFormatter.dateFormat = "h:mm"
+    let amPmFormatter = DateFormatter()
+    amPmFormatter.dateFormat = "h:mm a"
+
+    if let end = end {
+        let cal = Calendar.current
+        let sameHalf = (cal.component(.hour, from: start) < 12) == (cal.component(.hour, from: end) < 12)
+        if sameHalf {
+            return "\(timeFormatter.string(from: start)) – \(amPmFormatter.string(from: end))"
+        } else {
+            return "\(amPmFormatter.string(from: start)) – \(amPmFormatter.string(from: end))"
+        }
+    } else {
+        return amPmFormatter.string(from: start)
+    }
+}
+
 //Appointment Card
 struct AppointmentCard: View {
     let appointment: Appointment
@@ -206,6 +221,13 @@ struct AppointmentCard: View {
         guard let date = startDate else { return false }
         // Can cancel if more than 24 hours away
         return date.timeIntervalSinceNow > 24 * 60 * 60
+    }
+    
+    private var bayName: String? {
+        guard let unitId = appointment.ResourceUnitID else { return nil }
+        if unitId == DoorConfig.bay1ResourceUnitId { return "Bay 1" }
+        if unitId == DoorConfig.bay2ResourceUnitId { return "Bay 2" }
+        return nil
     }
     
     var body: some View {
@@ -236,14 +258,20 @@ struct AppointmentCard: View {
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
                                 .font(.caption)
-                            Text(date.formatted(.dateTime.hour().minute()))
-                            
-                            if let end = endDate {
-                                Text("- \(end.formatted(.dateTime.hour().minute()))")
-                            }
+                            Text(compactTimeRange(start: date, end: endDate))
                         }
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        
+                        if let bay = bayName {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sportscourt")
+                                    .font(.caption)
+                                Text(bay)
+                            }
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 
@@ -288,10 +316,14 @@ struct AppointmentCard: View {
                 onCancel()
             }
         } message: {
-            Text("Are you sure you want to cancel this reservation? This cannot be undone.")
+            Text("Are you sure you want to cancel this reservation? Cancellations made more than 24 hours in advance will be refunded to your original payment method.")
         }
     }
     
+    private func compactTimeRange(start: Date, end: Date?) -> String {
+        appointmentTimeRange(start: start, end: end)
+    }
+
     private var statusBadge: some View {
         let status = AppointmentStatusType(rawValue: appointment.StatusID ?? 1) ?? .active
         

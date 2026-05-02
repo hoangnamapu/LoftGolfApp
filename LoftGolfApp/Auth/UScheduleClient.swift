@@ -61,7 +61,8 @@ struct BookingModel: Codable {
     let StartTime: String        // local ISO
     let ServiceLength: Int?
     let Notes: String?
-    let PaymentType: Int?        // 1=PayAtLocation
+    let PaymentType: Int?        // 1=PayAtLocation, 2=PayWithCreditCard
+    let PaymentCard: UScheduleCreditCard?
     let PrepayServiceCustomerID: Int?
 }
 
@@ -219,7 +220,8 @@ struct Customer: Codable, Identifiable {
     let ParentCustomerID: Int?
     let MembershipStart: String?
     let Phone: String?
-    
+    let LoyaltyPointTotal: Int?
+
     var id: Int { Id }
     
     var fullName: String {
@@ -431,81 +433,104 @@ final class UScheduleClient {
     }
         
     func cancelAppointment(authToken: String, id: Int) async throws -> String {
-        struct IdModel: Codable { let id: Int }
-        let req = request("cancelappointment", authToken: authToken, httpMethod: "POST", body: try enc.encode(IdModel(id: id)))
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard let http = resp as? HTTPURLResponse else { throw USError.unknown }
-            
-        let responseText = String(data: data, encoding: .utf8) ?? ""
-            
-        if http.statusCode == 200 {
-            return "Ok"
-        } else if http.statusCode == 400 {
-            throw USError.http(400, responseText)
-        } else {
-            throw USError.http(http.statusCode, responseText)
-        }
-    }
-        
-    //Customer Methods
-    func customer(authToken: String) async throws -> Customer {
-        try await send(request("customer", authToken: authToken, httpMethod: "GET"), Customer.self)
-    }
-        
-    //Prepay Service Methods
-    func prepayServices(authToken: String) async throws -> [PrepayService] {
-        try await send(request("prepayservices", authToken: authToken, httpMethod: "GET"), [PrepayService].self)
-    }
-        
-    func prepayServiceCustomers(authToken: String) async throws -> [PrepayServiceCustomerModel] {
-        try await send(request("prepayservicecustomers", authToken: authToken, httpMethod: "GET"), [PrepayServiceCustomerModel].self)
-    }
-    
-}
+        struct CancelAppointmentRequest: Codable { let Id: Int }
+        struct LegacyCancelAppointmentRequest: Codable { let AppointmentID: Int }
+        struct AlternateCancelAppointmentRequest: Codable { let id: Int }
 
-//Date Formatting Helpers
-extension UScheduleClient {
-    static func formatDateForAPI(_ date: Date) -> String {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: date)
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-        formatter.timeZone = .current
-        return formatter.string(from: startOfDay)
-    }
-    
-    static func parseAPIDate(_ string: String?) -> Date? {
-        guard let string = string else { return nil }
-        
-        let formatters: [DateFormatter] = {
-            let formats = [
-                "yyyy-MM-dd'T'HH:mm:ss",
-                "yyyy-MM-dd'T'HH:mm:ss.SSS",
-                "yyyy-MM-dd'T'HH:mm:ssZ",
-                "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-            ]
-            return formats.map { format in
-                let formatter = DateFormatter()
-                formatter.dateFormat = format
-                formatter.locale = Locale(identifier: "en_US_POSIX")
-                return formatter
-            }
-        }()
-        
-        for formatter in formatters {
-            if let date = formatter.date(from: string) {
-                return date
+        func sendCancelRequest<Request: Encodable>(_ body: Request) async throws -> String {
+            let req = request("cancelappointment", authToken: authToken, httpMethod: "POST", body: try enc.encode(body))
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse else { throw USError.unknown }
+
+            let responseText = String(data: data, encoding: .utf8) ?? ""
+
+            if (200...299).contains(http.statusCode) {
+                return "Ok"
+            } else if http.statusCode == 400 {
+                throw USError.http(400, responseText)
+            } else {
+                throw USError.http(http.statusCode, responseText)
             }
         }
-        
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = isoFormatter.date(from: string) {
-            return date
+
+        func shouldRetry(after error: Error) -> Bool {
+            if case USError.http = error {
+                return true
+            }
+            return false
         }
-        
-        isoFormatter.formatOptions = [.withInternetDateTime]
-        return isoFormatter.date(from: string)
+
+        // USchedule cancellation has been inconsistent across environments.
+        // Prefer the previously working "Id" contract, then fall back to older variants.
+        do {
+            return try await sendCancelRequest(CancelAppointmentRequest(Id: id))
+        } catch {
+            guard shouldRetry(after: error) else { throw error }
+        }
+
+        do {
+            return try await sendCancelRequest(LegacyCancelAppointmentRequest(AppointmentID: id))
+        } catch {
+            guard shouldRetry(after: error) else { throw error }
+        }
+
+        do {
+            return try await sendCancelRequest(AlternateCancelAppointmentRequest(id: id))
+        } catch {
+            throw error
+        }
     }
-}
+
+        // Customer Methods
+        func customer(authToken: String) async throws -> Customer {
+            try await send(request("customer", authToken: authToken, httpMethod: "GET"), Customer.self)
+        }
+
+        // Prepay Service Methods
+        func prepayServices(authToken: String) async throws -> [PrepayService] {
+            try await send(request("prepayservices", authToken: authToken, httpMethod: "GET"), [PrepayService].self)
+        }
+
+        func prepayServiceCustomers(authToken: String) async throws -> [PrepayServiceCustomerModel] {
+            try await send(request("prepayservicecustomers", authToken: authToken, httpMethod: "GET"), [PrepayServiceCustomerModel].self)
+        }
+
+    }
+
+    // Date Formatting Helpers
+    extension UScheduleClient {
+        static func formatDateForAPI(_ date: Date) -> String {
+            let calendar = Calendar.current
+            let startOfDay = calendar.startOfDay(for: date)
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            formatter.timeZone = .current
+            return formatter.string(from: startOfDay)
+        }
+
+        static func parseAPIDate(_ string: String?) -> Date? {
+            guard let string = string else { return nil }
+            let formatters: [DateFormatter] = {
+                let formats = [
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                    "yyyy-MM-dd'T'HH:mm:ss.SSS",
+                    "yyyy-MM-dd'T'HH:mm:ssZ",
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+                ]
+                return formats.map { format in
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = format
+                    formatter.locale = Locale(identifier: "en_US_POSIX")
+                    return formatter
+                }
+            }()
+            for formatter in formatters {
+                if let date = formatter.date(from: string) { return date }
+            }
+            let isoFormatter = ISO8601DateFormatter()
+            isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = isoFormatter.date(from: string) { return date }
+            isoFormatter.formatOptions = [.withInternetDateTime]
+            return isoFormatter.date(from: string)
+        }
+    }

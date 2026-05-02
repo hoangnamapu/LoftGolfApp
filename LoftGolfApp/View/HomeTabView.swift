@@ -8,15 +8,55 @@
 import SwiftUI
 
 struct HomeTabView: View {
-    @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var viewModel: HomeViewModel
     @State private var showNewBooking = false
-    
+    @State private var freeHours: Int = 0
+    @State private var prepaidCards: [USPrepayServiceCustomer] = []
     let authToken: String?
-    
-    init(authToken: String? = nil) {
+    @Binding var selectedTab: Int
+
+    init(authToken: String? = nil,
+         selectedTab: Binding<Int> = .constant(0),
+         viewModel: HomeViewModel? = nil) {
         self.authToken = authToken
+        self._selectedTab = selectedTab
+        _viewModel = StateObject(wrappedValue: viewModel ?? HomeViewModel())
     }
-    
+
+    private var errorAlertBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
+        )
+    }
+
+    private func loadPrepaidCards() {
+        guard let token = authToken else {
+            print("❌ HomeTabView: authToken is nil")
+            return
+        }
+
+        PrepaidCreditsService.fetchPrepaidCards(authToken: token) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let cards):
+                    for card in cards {
+                        print("PREPAID CARD -> id:", card.Id)
+                        print("name:", card.UnitName ?? "nil")
+                        print("remaining units:", card.RemainingUnits)
+                    }
+
+                    self.prepaidCards = cards.filter { $0.RemainingUnits > 0 }
+                    self.freeHours = self.prepaidCards.reduce(0) { $0 + $1.RemainingUnits }
+                case .failure(let err):
+                    print("❌ Prepaid cards error:", err)
+                    self.prepaidCards = []
+                    self.freeHours = 0
+                }
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -50,23 +90,24 @@ struct HomeTabView: View {
                             customerName: viewModel.customerName ?? "Golfer"
                         )
 
-                        RewardsCard()
+                        RewardsCard(
+                            progressPoints: viewModel.currentProgressPoints,
+                            anytimeCredits: viewModel.anytimeCredits,
+                            onViewRewards: {
+                                selectedTab = 1
+                            }
+                        )
 
-                        if viewModel.hasActiveAppointment {
-                            OpenDoorButton { viewModel.openDoor() }
-                        }
+                        PrepaidCardsSection(cards: prepaidCards)
 
-                        QuickBookCard { showNewBooking = true }
+                        QuickBookCard { selectedTab = 2 }
 
                         UpcomingAppointmentsSection(
                             appointments: viewModel.upcomingAppointments,
                             isLoading: viewModel.isLoading,
-                            authToken: authToken
+                            authToken: authToken,
+                            viewModel: viewModel
                         )
-
-                        if viewModel.hasActiveAppointment {
-                            InVenueControlsCard()
-                        }
 
                         Spacer(minLength: 250)
                     }
@@ -76,23 +117,25 @@ struct HomeTabView: View {
             }
 
             .frame(maxWidth: .infinity)
-            .frame(minHeight: UIScreen.main.bounds.height, alignment: .top )
+            .frame(minHeight: UIScreen.main.bounds.height, alignment: .top)
             .navigationBarHidden(true)
             .refreshable {
                 await viewModel.loadData()
             }
             .task {
                 if let token = authToken {
+                    print("HOME TOKEN:", token)
                     viewModel.setAuthToken(token)
+                    loadPrepaidCards()
                 }
                 await viewModel.loadData()
             }
-            .sheet(isPresented: $showNewBooking) {
-                NewBookingView(authToken: authToken) {
-                    Task {
-                        await viewModel.loadData()
-                    }
+            .alert("Error", isPresented: errorAlertBinding) {
+                Button("OK", role: .cancel) {
+                    viewModel.errorMessage = nil
                 }
+            } message: {
+                Text(viewModel.errorMessage ?? "Something went wrong.")
             }
         }
     }
@@ -102,94 +145,179 @@ struct HomeTabView: View {
 struct WelcomeHeader: View {
     let greeting: String
     let customerName: String
-    
+
     var body: some View {
         HStack {
-            // Logo from Assets
             Image("image2")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 60, height: 70)
                 .clipShape(Circle())
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(greeting)
                     .font(.subheadline)
                     .foregroundStyle(.gray)
-                
+
                 Text(customerName)
                     .font(.title2.bold())
                     .foregroundStyle(.white)
             }
-            
+
             Spacer()
         }
         .padding(.vertical, 13)
     }
 }
 
-//Rewards Card (Placeholder)
 struct RewardsCard: View {
+    let progressPoints: Int
+    let anytimeCredits: Int
+    let onViewRewards: () -> Void
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "gift.fill")
                     .foregroundStyle(.green)
-                
+
                 Text("Loft Golf Rewards")
                     .font(.system(size: 25, weight: .semibold))
                     .foregroundStyle(.white)
-                
+
                 Spacer()
-                
+
                 Button {
-                    // Info action
+                    onViewRewards()
                 } label: {
-                    Image(systemName: "questionmark.circle")
-                        .foregroundStyle(.white)
+                    Text("View Rewards")
+                        .font(.caption)
+                        .foregroundStyle(.gray)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(4)
                 }
+                .buttonStyle(.plain)
             }
-            
-            Text("0")
+
+            Text("\(progressPoints) pts")
                 .font(.system(size: 48, weight: .bold))
                 .foregroundStyle(.green)
-            
+
             Divider()
                 .background(Color.gray.opacity(0.3))
-            
-            HStack {
-                Text("Points")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.gray)
-                
-                Spacer()
-                
-                Text("Coming Soon")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(4)
-            }
+
         }
         .padding()
         .background(Color(.systemGray6).opacity(0.15))
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
         )
     }
 }
 
-//Open Door Button (Placeholder)
+struct PrepaidCardsSection: View {
+    let cards: [USPrepayServiceCustomer]
+
+    private var anytimeUnits: Int {
+        units(matching: ["anytime", "any time"], fallbackIndex: 0)
+    }
+
+    private var weekdayUnits: Int {
+        units(matching: ["weekday", "week day"], fallbackIndex: 1)
+    }
+
+    private var hasNamedCreditBuckets: Bool {
+        cards.contains { card in
+            let label = card.displayName.lowercased()
+            return label.contains("anytime")
+                || label.contains("any time")
+                || label.contains("weekday")
+                || label.contains("week day")
+        }
+    }
+
+    private func units(matching keywords: [String], fallbackIndex: Int) -> Int {
+        let matchedCards = cards.filter { card in
+            let label = card.displayName.lowercased()
+            return keywords.contains { label.contains($0) }
+        }
+
+        if !matchedCards.isEmpty {
+            return matchedCards.reduce(0) { $0 + $1.RemainingUnits }
+        }
+
+        if !hasNamedCreditBuckets, cards.indices.contains(fallbackIndex) {
+            return cards[fallbackIndex].RemainingUnits
+        }
+
+        return 0
+    }
+
+    var body: some View {
+        if cards.isEmpty {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "creditcard.fill")
+                        .foregroundStyle(.green)
+                    
+                    Text("Prepaid Credits")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                    
+                    Spacer()
+                }
+                
+                HStack(spacing: 20) {
+                    
+                    // Anytime
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(anytimeUnits)")
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(.green)
+                        
+                        Text("Anytime")
+                            .font(.subheadline)
+                            .foregroundStyle(.white)
+                    }
+                    
+                    // Weekday
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(weekdayUnits)")
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(.green)
+                        
+                        Text("Weekday")
+                            .font(.subheadline)
+                            .foregroundStyle(.white)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding()
+            .background(Color(.systemGray6).opacity(0.15))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+}
+
 struct OpenDoorButton: View {
+    var isEnabled: Bool = true
     let action: () -> Void
     @State private var isPressed = false
-    
+
     var body: some View {
         Button {
+            guard isEnabled else { return }
             isPressed = true
             action()
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -199,36 +327,35 @@ struct OpenDoorButton: View {
             HStack {
                 Image(systemName: isPressed ? "door.left.hand.open" : "door.left.hand.closed")
                     .font(.title2)
-                
+
                 Text(isPressed ? "Opening..." : "Open Door")
                     .font(.headline.bold())
             }
-            .foregroundStyle(.black)
+            .foregroundStyle(isEnabled ? .black : .white)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.green)
+            .background(isEnabled ? Color.green : Color.gray.opacity(0.4))
             .cornerRadius(12)
         }
-        .disabled(isPressed)
+        .disabled(isPressed || !isEnabled)
     }
 }
 
 //Quick Book Card
 struct QuickBookCard: View {
     let onBookTap: () -> Void
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Book Now")
                 .font(.system(size: 25, weight: .semibold))
                 .foregroundStyle(.white)
-            
-            // Reserve button
+
             Button(action: onBookTap) {
                 HStack {
                     Image(systemName: "figure.golf")
                         .font(.title2)
-                    
+
                     Text("Reserve Simulator")
                         .font(.system(size: 18, weight: .semibold))
                 }
@@ -244,7 +371,7 @@ struct QuickBookCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
         )
     }
 }
@@ -255,12 +382,12 @@ struct ServiceTypeButton: View {
     let title: String
     var isSelected: Bool = false
     var isDisabled: Bool = false
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
-            
+
             Text(title)
                 .font(.caption.weight(.medium))
         }
@@ -278,27 +405,16 @@ struct UpcomingAppointmentsSection: View {
     let appointments: [Appointment]
     let isLoading: Bool
     let authToken: String?
-    
+    @ObservedObject var viewModel: HomeViewModel
+
+    @State private var showAppointmentsSheet = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Upcoming")
-                    .font(.system(size: 25, weight: .semibold))
-                    .foregroundStyle(.white)
-                
-                Spacer()
-                
-                if !appointments.isEmpty {
-                    NavigationLink {
-                        BookingsTabView(authToken: authToken)
-                    } label: {
-                        Text("See All")
-                            .font(.subheadline)
-                            .foregroundStyle(.green)
-                    }
-                }
-            }
-            
+            Text("Upcoming")
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(.white)
+
             if isLoading {
                 HStack {
                     Spacer()
@@ -308,12 +424,11 @@ struct UpcomingAppointmentsSection: View {
                 }
                 .padding(.vertical, 30)
             } else if appointments.isEmpty {
-                // Empty state
                 VStack(spacing: 12) {
                     Image(systemName: "calendar.badge.plus")
                         .font(.system(size: 60))
                         .foregroundStyle(.green)
-                    
+
                     Text("No upcoming reservations")
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.white)
@@ -321,9 +436,20 @@ struct UpcomingAppointmentsSection: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 30)
             } else {
-                // Appointment cards
                 ForEach(appointments.prefix(3)) { appointment in
-                    UpcomingAppointmentCard(appointment: appointment)
+                    VStack(spacing: 6) {
+                        AppointmentCard(
+                            appointment: appointment,
+                            onCancel: {
+                                Task { await viewModel.cancelAppointment(appointment) }
+                            }
+                        )
+                        OpenDoorButton(
+                            isEnabled: viewModel.isInActivationWindow(for: appointment)
+                        ) {
+                            showAppointmentsSheet = true
+                        }
+                    }
                 }
             }
         }
@@ -332,166 +458,41 @@ struct UpcomingAppointmentsSection: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.9), lineWidth: 1)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
         )
+        .sheet(isPresented: $showAppointmentsSheet) {
+            BookingWebView(
+                authToken: authToken,
+                showNavBar: true,
+                targetURL: "https://clients.uschedule.com/loftgolfstudios/customerprofile/appointments",
+                title: "My Appointments",
+                showDismissButton: true
+            )
+        }
     }
 }
 
-//Upcoming Appointment Card
-struct UpcomingAppointmentCard: View {
-    let appointment: Appointment
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            // Date badge
-            VStack(spacing: 2) {
-                Text(monthString)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.green)
-                
-                Text(dayString)
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 50)
-            .padding(.vertical, 8)
-            .background(Color(.systemGray6).opacity(0.5))
-            .cornerRadius(8)
-            
-            // Details
-            VStack(alignment: .leading, spacing: 4) {
-                Text(appointment.Description ?? "Simulator Rental")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                
-                HStack {
-                    Image(systemName: "clock")
-                        .font(.caption)
-                    Text(timeString)
-                        .font(.caption)
-                }
-                .foregroundStyle(.gray)
-            }
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .foregroundStyle(.gray)
-        }
-        .padding()
-        .background(Color(.systemGray6).opacity(0.3))
-        .cornerRadius(12)
-    }
-    
-    private var monthString: String {
-        guard let startTime = appointment.StartTime,
-              let date = UScheduleClient.parseAPIDate(startTime) else {
-            return "---"
-        }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date).uppercased()
-    }
-    
-    private var dayString: String {
-        guard let startTime = appointment.StartTime,
-              let date = UScheduleClient.parseAPIDate(startTime) else {
-            return "--"
-        }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: date)
-    }
-    
-    private var timeString: String {
-        guard let startTime = appointment.StartTime,
-              let date = UScheduleClient.parseAPIDate(startTime) else {
-            return "--:--"
-        }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: date)
-    }
-}
-
-//In-Venue Controls Card (Placeholder)
-struct InVenueControlsCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "slider.horizontal.3")
-                    .foregroundStyle(.green)
-                
-                Text("Bay Controls")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                
-                Spacer()
-                
-                Text("In-Venue")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.green.opacity(0.2))
-                    .cornerRadius(4)
-            }
-            
-            // Control buttons
-            HStack(spacing: 12) {
-                InVenueControlButton(icon: "lightbulb.fill", title: "Lights")
-                InVenueControlButton(icon: "thermometer.medium", title: "Climate")
-                InVenueControlButton(icon: "tv.fill", title: "TV")
-                InVenueControlButton(icon: "plus.circle.fill", title: "Extend")
-            }
-            
-            Text("Controls available during your appointment")
-                .font(.caption)
-                .foregroundStyle(.gray)
-        }
-        .padding()
-        .background(Color(.systemGray6).opacity(0.15))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.green.opacity(0.3), lineWidth: 1)
-        )
-    }
-}
-
-//In-Venue Control Button
-struct InVenueControlButton: View {
-    let icon: String
-    let title: String
-    
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(.white)
-            
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.gray)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(Color(.systemGray6).opacity(0.3))
-        .cornerRadius(10)
-    }
-}
-
-//ome ViewModel
 @MainActor
 class HomeViewModel: ObservableObject {
     @Published var customerName: String?
     @Published var upcomingAppointments: [Appointment] = []
     @Published var isLoading = false
-    @Published var hasActiveAppointment = false  // For in-venue features
-    
+    @Published var currentProgressPoints = 0
+    @Published var anytimeCredits = 0
+    @Published var errorMessage: String?
+    @Published private var currentTime = Date()
+
     private let client = UScheduleClient()
     private var authToken: String?
-    
+    private var timer: Timer?
+
+    private func startTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async { self?.currentTime = Date() }
+        }
+    }
+
     var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
@@ -500,40 +501,42 @@ class HomeViewModel: ObservableObject {
         default: return "Good evening"
         }
     }
-    
+
     func setAuthToken(_ token: String) {
         self.authToken = token
     }
-    
+
     func loadData() async {
         guard let token = authToken else { return }
-        
+
         isLoading = true
-        
+
         do {
-            // Load customer info
             if Task.isCancelled { return }
             let customer = try await client.customer(authToken: token)
             self.customerName = customer.FirstName
-            
-            // Load appointments
+            await NotificationManager.shared.setCustomerID(String(customer.Id))
+            let loyaltyPoints = customer.LoyaltyPointTotal ?? 0
+            self.currentProgressPoints = loyaltyPoints
+            self.anytimeCredits = 0
+
             if Task.isCancelled { return }
             let appointments = try await client.appointments(authToken: token)
-            
-            // Filter upcoming appointments (future + active status)
+            print("[DEBUG] First appointment customerID:", appointments.first?.CustomerID ?? "nil")
+
             self.upcomingAppointments = appointments
                 .filter { appointment in
                     guard let startTimeStr = appointment.StartTime,
                           let startTime = UScheduleClient.parseAPIDate(startTimeStr) else {
                         return false
                     }
-                    // Include appointments that are happening now or in the future
                     let now = Date()
+                    let gracePeriod: TimeInterval = 15 * 60
                     if let endStr = appointment.EndTime,
                        let endTime = UScheduleClient.parseAPIDate(endStr) {
-                        return endTime > now && appointment.StatusID == 1
+                        return endTime.addingTimeInterval(gracePeriod) > now && appointment.StatusID == 1
                     }
-                    return startTime > now && appointment.StatusID == 1
+                    return startTime.addingTimeInterval(3600 + gracePeriod) > now && appointment.StatusID == 1
                 }
                 .sorted { a, b in
                     guard let aTime = UScheduleClient.parseAPIDate(a.StartTime),
@@ -542,61 +545,95 @@ class HomeViewModel: ObservableObject {
                     }
                     return aTime < bTime
                 }
-            
-            // Check if there's an active appointment (for in-venue features)
-            // TODO: Add geofencing check
-            self.hasActiveAppointment = checkForActiveAppointment(appointments)
-            
+
             if !Task.isCancelled {
                 isLoading = false
+                startTimer()
             }
         } catch {
             print("Failed to load home data: \(error)")
             if !Task.isCancelled {
                 isLoading = false
+                startTimer()
             }
         }
     }
-    
-    //Check if user has an appointment happening right now
-    private func checkForActiveAppointment(_ appointments: [Appointment]) -> Bool {
+
+    // MARK: - Activation window
+
+    func isInActivationWindow(for appointment: Appointment) -> Bool {
         let now = Date()
-        
-        for appointment in appointments {
-            guard let startTimeStr = appointment.StartTime,
-                  let startTime = UScheduleClient.parseAPIDate(startTimeStr),
-                  appointment.StatusID == 1 else {
-                continue
-            }
-            
-            //Try to get end time from EndTime field, or calculate from duration
-            var endTime: Date
-            if let endStr = appointment.EndTime,
-               let end = UScheduleClient.parseAPIDate(endStr) {
-                endTime = end
-            } else {
-                // Default to 1 hour if no end time
-                endTime = startTime.addingTimeInterval(60 * 60)
-            }
-            
-            // Check if now is within the appointment window
-            // Add 15 min buffer before start for early arrival
-            let bufferStart = startTime.addingTimeInterval(-15 * 60)
-            
-            if now >= bufferStart && now <= endTime {
-                return true
-            }
+        guard let startStr = appointment.StartTime,
+              let startTime = UScheduleClient.parseAPIDate(startStr),
+              appointment.StatusID == 1 else { return false }
+        let endTime = UScheduleClient.parseAPIDate(appointment.EndTime)
+                      ?? startTime.addingTimeInterval(3600)
+        let bufferStart = startTime.addingTimeInterval(-5 * 60)
+        let bufferEnd   = endTime.addingTimeInterval(15 * 60)
+        return now >= bufferStart && now <= bufferEnd
+    }
+
+    func cancelAppointment(_ appointment: Appointment) async {
+        guard let token = authToken else {
+            errorMessage = "Not authenticated"
+            return
         }
-        
-        return false
+
+        errorMessage = nil
+
+        do {
+            _ = try await client.cancelAppointment(authToken: token, id: appointment.Id)
+            await loadData()
+        } catch let error as USError {
+            switch error {
+            case .http(400, let message):
+                let detail = message.isEmpty ? "The reservation could not be cancelled." : message
+                errorMessage = "Cancellation failed: \(detail)"
+            case .http(let code, let message):
+                errorMessage = "Cancellation failed (error \(code)): \(message)"
+            default:
+                errorMessage = "Cancellation failed: \(error.localizedDescription)"
+            }
+        } catch {
+            errorMessage = "Cancellation failed: \(error.localizedDescription)"
+        }
     }
     
-    func openDoor() {
-        // TODO: Implement door control via environment management API
-        print("Opening door...")
-    }
 }
 
-#Preview {
-    HomeTabView(authToken: nil)
+// MARK: - Preview Helpers
+@MainActor
+func mockHomeVM(points: Int) -> HomeViewModel {
+    let vm = HomeViewModel()
+    vm.customerName = "Mattias"
+    vm.currentProgressPoints = points % 50
+    vm.anytimeCredits = points / 50
+    return vm
+}
+
+#Preview("0 Points") {
+    HomeTabView(
+        authToken: nil,
+        selectedTab: .constant(0),
+        viewModel: mockHomeVM(points: 0)
+    )
+    .preferredColorScheme(.dark)
+}
+
+#Preview("100 Points → 2 Credits") {
+    HomeTabView(
+        authToken: nil,
+        selectedTab: .constant(0),
+        viewModel: mockHomeVM(points: 100)
+    )
+    .preferredColorScheme(.dark)
+}
+
+#Preview("125 Points → Progress") {
+    HomeTabView(
+        authToken: nil,
+        selectedTab: .constant(0),
+        viewModel: mockHomeVM(points: 125)
+    )
+    .preferredColorScheme(.dark)
 }

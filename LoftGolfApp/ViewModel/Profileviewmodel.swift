@@ -39,6 +39,7 @@ struct UserProfile {
 
 struct BookingHistory: Identifiable {
     let id: Int
+    let masterAppointmentId: Int?
     let description: String
     let startTime: Date
     let endTime: Date?
@@ -46,6 +47,20 @@ struct BookingHistory: Identifiable {
     let serviceName: String?
     let price: Decimal?
     let status: AppointmentStatus
+
+    var cancellationCandidateIds: [Int] {
+        var ids: [Int] = []
+
+        if let masterAppointmentId, masterAppointmentId > 0 {
+            ids.append(masterAppointmentId)
+        }
+
+        if !ids.contains(id) {
+            ids.append(id)
+        }
+
+        return ids
+    }
 }
 
 enum GenderOption: String, CaseIterable, Identifiable {
@@ -299,6 +314,7 @@ final class ProfileViewModel: ObservableObject {
             
             return BookingHistory(
                 id: id,
+                masterAppointmentId: apt["MasterAppointmentID"] as? Int,
                 description: apt["Description"] as? String ?? "",
                 startTime: startTime,
                 endTime: parseDate(apt["EndTime"] as? String),
@@ -384,29 +400,19 @@ final class ProfileViewModel: ObservableObject {
     }
     
     // MARK: - Appointment Actions
-    func cancelAppointment(_ appointmentId: Int) async {
-        guard let token = authToken else { return }
-        
+    func cancelAppointment(_ booking: BookingHistory) async -> Bool {
+        guard let token = authToken else {
+            errorMessage = "Not authenticated"
+            return false
+        }
+
         do {
-            var request = URLRequest(url: URL(string: "\(USConfig.baseURL)/api/\(USConfig.alias)/cancelappointment")!)
-            request.httpMethod = "POST"
-            request.setValue(USConfig.appKey, forHTTPHeaderField: "X-US-Application-Key")
-            request.setValue(token, forHTTPHeaderField: "X-US-AuthToken")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            
-            let body = ["id": appointmentId]
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            
-            let (_, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse,
-               httpResponse.statusCode == 200 {
-                await loadProfile() // Reload to get updated data
-            }
+            _ = try await client.cancelAppointment(authToken: token, id: booking.id)
+            await loadProfile()
+            return true
         } catch {
-            await MainActor.run {
-                self.errorMessage = "Failed to cancel appointment: \(error.localizedDescription)"
-            }
+            errorMessage = "Failed to cancel appointment: \(error.localizedDescription)"
+            return false
         }
     }
     
@@ -432,6 +438,10 @@ final class ProfileViewModel: ObservableObject {
         upcomingBookings = []
         pastBookings = []
         prepaidCards = []
+        // Clear saved credentials so biometric login is disabled after sign-out
+        UserDefaults.standard.set(false, forKey: "biometricEnabled")
+        KeychainHelper.delete(key: "loft.savedUsername")
+        KeychainHelper.delete(key: "loft.savedPassword")
     }
 
     func setAuthToken(_ token: String) {
@@ -478,6 +488,7 @@ extension ProfileViewModel {
         vm.upcomingBookings = [
             BookingHistory(
                 id: 1,
+                masterAppointmentId: nil,
                 description: "Golf Simulator - Bay 1",
                 startTime: Date().addingTimeInterval(2*24*60*60),
                 endTime: Date().addingTimeInterval(2*24*60*60 + 60*60),
