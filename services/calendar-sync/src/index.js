@@ -1,21 +1,35 @@
 const express = require("express");
-const { port, syncKey, bay1CalendarId, bay2CalendarId, timeZone } = require("./config");
+const {
+  port,
+  syncKey,
+  bay1CalendarId,
+  bay2CalendarId,
+  timeZone,
+  uscheduleImpersonateEmail,
+} = require("./config");
+
 const { getMapping, setMapping, deleteMapping } = require("./store");
 const { toEvent, createEvent, patchEvent, deleteEvent } = require("./gcal");
+const { impersonate } = require("./uschedule");
+const { startReminder, runReminderOnce } = require("./reminder");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 
 function requireKey(req, res, next) {
   const key = req.header("x-sync-key");
-  if (!key || key !== syncKey) return res.status(401).json({ error: "unauthorized" });
+  if (!key || key !== syncKey) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
   next();
 }
 
 function calendarForBay(bay) {
   if (String(bay) === "1") return bay1CalendarId;
   if (String(bay) === "2") {
-    if (!bay2CalendarId) throw new Error("Bay 2 is not configured (BAY2_CALENDAR_ID not set)");
+    if (!bay2CalendarId) {
+      throw new Error("Bay 2 is not configured (BAY2_CALENDAR_ID not set)");
+    }
     return bay2CalendarId;
   }
   throw new Error(`Unknown bay: ${bay}`);
@@ -49,11 +63,20 @@ async function syncBooking(booking) {
     await deleteEvent(existing.calendarId, existing.eventId);
     const created = await createEvent(calendarId, eventBody);
     await setMapping(appointmentId, { calendarId, eventId: created.id });
-    console.log(`[sync] appointment ${appointmentId} moved from calendar ${existing.calendarId} to ${calendarId}`);
+    console.log(
+      `[sync] appointment ${appointmentId} moved from calendar ${existing.calendarId} to ${calendarId}`
+    );
     return { action: "move", appointmentId, eventId: created.id };
   } else {
-    const updated = await patchEvent(existing.calendarId, existing.eventId, eventBody);
-    await setMapping(appointmentId, { calendarId: existing.calendarId, eventId: existing.eventId });
+    const updated = await patchEvent(
+      existing.calendarId,
+      existing.eventId,
+      eventBody
+    );
+    await setMapping(appointmentId, {
+      calendarId: existing.calendarId,
+      eventId: existing.eventId,
+    });
     return { action: "update", appointmentId, eventId: updated.id };
   }
 }
@@ -67,29 +90,68 @@ app.get("/health", (_, res) => res.json({ ok: true }));
 app.post("/sync/uschedule", requireKey, async (req, res) => {
   try {
     const booking = req.body;
+
     if (!booking?.id || !booking?.bay || !booking?.startISO || !booking?.endISO) {
       return res.status(400).json({ error: "missing required fields" });
     }
+
     const result = await syncBooking(booking);
     return res.json({ ok: true, ...result });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "server_error", detail: String(err.message || err) });
+    return res.status(500).json({
+      error: "server_error",
+      detail: String(err.message || err),
+    });
+  }
+});
+
+/**
+ * Reminder endpoint for Cloud Scheduler.
+ *
+ * Recommended production flow:
+ * Cloud Scheduler calls this endpoint every 1 minute.
+ *
+ * Required header:
+ * x-sync-key: same value as SYNC_KEY
+ */
+app.post("/tasks/reminders", requireKey, async (req, res) => {
+  try {
+    const authKey = await impersonate(uscheduleImpersonateEmail);
+    await runReminderOnce(authKey);
+
+    return res.json({
+      ok: true,
+      action: "reminder_check_completed",
+    });
+  } catch (err) {
+    console.error("[reminder] task endpoint error:", err.message || err);
+
+    return res.status(500).json({
+      ok: false,
+      error: "reminder_task_failed",
+      detail: String(err.message || err),
+    });
   }
 });
 
 app.listen(port, () => {
   console.log(`calendar-sync listening on ${port}`);
+
   const { startPoller } = require("./poller");
   startPoller(syncBooking);
 
-  const { startReminder } = require("./reminder");
+  /**
+   * This old reminder loop can stay for local testing / backup.
+   * But for Cloud Run production, Cloud Scheduler calling /tasks/reminders
+   * is more reliable than relying only on this background setTimeout loop.
+   */
   let reminderAuthKey = null;
+
   startReminder(async () => {
-  if (!reminderAuthKey) {
-    	const { impersonate } = require("./uschedule");
-    	reminderAuthKey = await impersonate(require("./config").uscheduleImpersonateEmail);
-  }
-  return reminderAuthKey;
-});
+    if (!reminderAuthKey) {
+      reminderAuthKey = await impersonate(uscheduleImpersonateEmail);
+    }
+    return reminderAuthKey;
+  });
 });
