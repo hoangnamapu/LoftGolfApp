@@ -1,4 +1,4 @@
-const BASE = "https://beta.uschedule.com/api/loftgolfstudios";
+const BASE = "https://clients.uschedule.com/api/loftgolfstudios";
 const APP_KEY = "c9af66c8-7e45-41f8-a00e-8324df5d3036";
 
 async function _post(path, body, authKey) {
@@ -33,7 +33,7 @@ async function _post(path, body, authKey) {
  * @returns {Promise<string>} AuthKey
  */
 async function impersonate(email) {
-  const data = await _post("impersonateuser", { FieldName: "username", Value: email });
+  const data = await _post("impersonateuser", { SearchField: "username", Value: email });
   if (!data?.AuthKey) throw new Error("uSchedule impersonate response missing AuthKey");
   return data.AuthKey;
 }
