@@ -138,9 +138,11 @@ async function runReminderOnce(authKey) {
       });
 
       // Only process active appointments.
-      // If sponsor testing still fails, verify that active uSchedule bookings really use StatusID === 1.
-      if (statusId !== 1) {
-        console.log("[reminder] Skipping appointment because StatusID is not 1", {
+      // Production (clients.uschedule.com) returns StatusID 0 for normal active
+      // bookings; only 9/10 (canceled/rescheduled) should be skipped here.
+      const CANCELED_STATUS_IDS = [9, 10];
+      if (CANCELED_STATUS_IDS.includes(statusId)) {
+        console.log("[reminder] Skipping appointment because it is canceled/rescheduled", {
           appointmentId,
           statusId,
         });

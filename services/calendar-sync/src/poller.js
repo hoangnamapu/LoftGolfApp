@@ -2,9 +2,15 @@ const { fetchAppointments } = require("./uschedule");
 const { getSnapshot, setSnapshot, deleteSnapshot, listSnapshotIds } = require("./store");
 const { pollIntervalMs } = require("./config");
 
-// Active StatusIDs from uSchedule
-const STATUS_ACTIVE = 1;
+// StatusIDs from uSchedule.
+// Production (clients.uschedule.com) returns StatusID 0 ("not set") for normal
+// active bookings; the old beta server used 1. Treat anything that is NOT an
+// explicit cancel/reschedule as active so both values sync to the calendar.
 const STATUS_CANCELED = [9, 10]; // canceled, rescheduled
+
+function isActive(appt) {
+  return !STATUS_CANCELED.includes(appt.StatusID);
+}
 
 function bayForAppointment(appt) {
   const name = appt.ResourceName || "";
@@ -63,7 +69,7 @@ async function runOnce(authKey, syncBooking) {
 
       if (!snapshot) {
         // New appointment
-        if (appt.StatusID === STATUS_ACTIVE) {
+        if (isActive(appt)) {
           await syncBooking(appointmentToBooking(appt, bay));
           await setSnapshot(appt.AppointmentID, { ...appt, fingerprint: fp });
           console.log(`[poller] created event for appointment ${appt.AppointmentID}`);
