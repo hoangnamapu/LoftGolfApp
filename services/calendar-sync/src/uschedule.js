@@ -51,4 +51,37 @@ async function fetchAppointments(authKey, startDate, endDate) {
   return Array.isArray(data) ? data : [];
 }
 
-module.exports = { login, fetchAppointments };
+/**
+ * Fetches the FREE (bookable) slots for a resource unit on a given day.
+ *
+ * uSchedule's getapiappointments cannot tell us whether an appointment was
+ * cancelled (cancelled records are returned identically to active ones with
+ * StatusID 0). getavailability does reflect cancellations: a cancelled slot
+ * becomes bookable again. So a slot appearing here means there is no active
+ * booking on that unit/time — any synced events there are stale.
+ *
+ * @param {string} authKey
+ * @param {object} opts
+ * @param {number} opts.locationId
+ * @param {number} opts.resourceUnitId
+ * @param {number} opts.serviceId
+ * @param {string} opts.startDateISO   e.g. "2026-06-09T00:00:00"
+ * @param {number} opts.serviceLength  minutes
+ * @returns {Promise<object[]>} array of free slots: [{ StartTime, ResourceUnitID, ... }]
+ */
+async function fetchAvailability(authKey, { locationId, resourceUnitId, serviceId, startDateISO, serviceLength }) {
+  const data = await _post(
+    "getavailability",
+    {
+      LocationID: locationId,
+      ResourceUnitID: resourceUnitId,
+      ServiceID: serviceId,
+      StartDate: startDateISO,
+      ServiceLength: serviceLength,
+    },
+    authKey
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+module.exports = { login, fetchAppointments, fetchAvailability };

@@ -13,6 +13,10 @@ module.exports = {
   firestoreCollection: process.env.FIRESTORE_COLLECTION || "bookingEventMap",
   uscheduleUsername: must("USCHEDULE_IMPERSONATE_EMAIL"),
   uschedulePassword: must("USCHEDULE_PASSWORD"),
+  // Account-level IDs for the getavailability cancellation check (stable per account).
+  uscheduleLocationId: Number(process.env.USCHEDULE_LOCATION_ID || 11274),
+  uscheduleServiceId: Number(process.env.USCHEDULE_SERVICE_ID || 35371),
+  uscheduleServiceLengthMin: Number(process.env.USCHEDULE_SERVICE_LENGTH || 60),
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS || 60_000),
   snapshotCollection: process.env.SNAPSHOT_COLLECTION || "appointmentSnapshots",
 };

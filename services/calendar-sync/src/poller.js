@@ -1,15 +1,78 @@
-const { fetchAppointments } = require("./uschedule");
+const { fetchAppointments, fetchAvailability } = require("./uschedule");
 const { getSnapshot, setSnapshot, deleteSnapshot, listSnapshotIds } = require("./store");
-const { pollIntervalMs } = require("./config");
+const {
+  pollIntervalMs,
+  uscheduleLocationId,
+  uscheduleServiceId,
+  uscheduleServiceLengthMin,
+} = require("./config");
 
-// StatusIDs from uSchedule.
-// Production (clients.uschedule.com) returns StatusID 0 ("not set") for normal
-// active bookings; the old beta server used 1. Treat anything that is NOT an
-// explicit cancel/reschedule as active so both values sync to the calendar.
+// StatusIDs from uSchedule (kept for booking payload shape).
 const STATUS_CANCELED = [9, 10]; // canceled, rescheduled
 
-function isActive(appt) {
-  return !STATUS_CANCELED.includes(appt.StatusID);
+// Cancellation detection.
+// getapiappointments cannot tell active from cancelled (StatusID is always 0 on
+// production and cancelled records are returned identically to active ones). So
+// we use getavailability as the source of truth: if an appointment's slot shows
+// as FREE/bookable, there is no active booking there and any synced event is stale.
+// Times are compared as raw "YYYY-MM-DD" / "HH:mm" string slices to avoid timezone
+// drift (uSchedule returns local times without an offset).
+function dayKey(startTime) {
+  return typeof startTime === "string" ? startTime.slice(0, 10) : null;
+}
+function hourKey(startTime) {
+  return typeof startTime === "string" ? startTime.slice(11, 16) : null;
+}
+
+/**
+ * For every (ResourceUnitID, day) pair that has appointments, fetch the free
+ * slots once and return Map<"unitId|YYYY-MM-DD", Set<"HH:mm">>.
+ */
+async function buildFreeSlotMap(authKey, appts) {
+  const pairs = new Map();
+  for (const a of appts) {
+    if (a.ResourceUnitID == null || !a.StartTime) continue;
+    const day = dayKey(a.StartTime);
+    const key = `${a.ResourceUnitID}|${day}`;
+    if (!pairs.has(key)) pairs.set(key, { unitId: a.ResourceUnitID, day });
+  }
+
+  const freeByUnitDay = new Map();
+  for (const [key, { unitId, day }] of pairs) {
+    try {
+      const slots = await fetchAvailability(authKey, {
+        locationId: uscheduleLocationId,
+        resourceUnitId: unitId,
+        serviceId: uscheduleServiceId,
+        startDateISO: `${day}T00:00:00`,
+        serviceLength: uscheduleServiceLengthMin,
+      });
+      const free = new Set();
+      for (const s of slots) {
+        if (s && typeof s.StartTime === "string" && dayKey(s.StartTime) === day) {
+          free.add(hourKey(s.StartTime));
+        }
+      }
+      freeByUnitDay.set(key, free);
+    } catch (err) {
+      if (err.status === 401) throw err; // let the poller re-authenticate
+      console.error(`[poller] availability fetch failed for ${key}:`, err.message || err);
+      // leave key unset -> isActive() returns true (assume active, never delete)
+    }
+  }
+  return freeByUnitDay;
+}
+
+/**
+ * Active = the appointment's slot is NOT free. If we have no availability data
+ * for the slot (closed day, past date, or a failed fetch) we assume active so we
+ * never delete an event we can't positively confirm was cancelled.
+ */
+function isActive(appt, freeByUnitDay) {
+  if (appt.ResourceUnitID == null || !appt.StartTime) return true;
+  const free = freeByUnitDay.get(`${appt.ResourceUnitID}|${dayKey(appt.StartTime)}`);
+  if (!free) return true;
+  return !free.has(hourKey(appt.StartTime));
 }
 
 function bayForAppointment(appt) {
@@ -60,34 +123,43 @@ async function runOnce(authKey, syncBooking) {
   const bayAppointments = appointments.filter((a) => bayForAppointment(a) !== null);
   const seenIds = new Set(bayAppointments.map((a) => String(a.AppointmentID)));
 
+  // Source of truth for active vs cancelled (see buildFreeSlotMap).
+  const freeByUnitDay = await buildFreeSlotMap(authKey, bayAppointments);
+
   // Process each appointment from the API
   for (const appt of bayAppointments) {
     try {
       const bay = bayForAppointment(appt);
       const fp = fingerprint(appt);
       const snapshot = await getSnapshot(appt.AppointmentID);
+      const active = isActive(appt, freeByUnitDay);
 
-      if (!snapshot) {
-        // New appointment
-        if (isActive(appt)) {
-          await syncBooking(appointmentToBooking(appt, bay));
-          await setSnapshot(appt.AppointmentID, { ...appt, fingerprint: fp });
-          console.log(`[poller] created event for appointment ${appt.AppointmentID}`);
+      if (!active) {
+        // Cancelled — the slot is bookable again. Remove the event if we synced it.
+        if (snapshot) {
+          await syncBooking({
+            id: String(appt.AppointmentID),
+            bay,
+            startISO: appt.StartTime,
+            endISO: appt.EndTime,
+            status: "CANCELED",
+          });
+          await deleteSnapshot(appt.AppointmentID);
+          console.log(`[poller] removed cancelled appointment ${appt.AppointmentID} (slot free)`);
         }
-        // If already canceled on first sight, nothing to do
+        // Never synced and already cancelled — nothing to do.
+      } else if (!snapshot) {
+        // New active appointment
+        await syncBooking(appointmentToBooking(appt, bay));
+        await setSnapshot(appt.AppointmentID, { ...appt, fingerprint: fp });
+        console.log(`[poller] created event for appointment ${appt.AppointmentID}`);
       } else if (snapshot.fingerprint === fp) {
         // No change — skip
       } else {
-        // Something changed
-        if (STATUS_CANCELED.includes(appt.StatusID)) {
-          await syncBooking(appointmentToBooking(appt, bay));
-          await deleteSnapshot(appt.AppointmentID);
-          console.log(`[poller] canceled event for appointment ${appt.AppointmentID}`);
-        } else {
-          await syncBooking(appointmentToBooking(appt, bay));
-          await setSnapshot(appt.AppointmentID, { ...appt, fingerprint: fp });
-          console.log(`[poller] updated event for appointment ${appt.AppointmentID}`);
-        }
+        // Active and details changed — update
+        await syncBooking(appointmentToBooking(appt, bay));
+        await setSnapshot(appt.AppointmentID, { ...appt, fingerprint: fp });
+        console.log(`[poller] updated event for appointment ${appt.AppointmentID}`);
       }
     } catch (err) {
       console.error(`[poller] error processing appointment ${appt.AppointmentID}:`, err.message || err);

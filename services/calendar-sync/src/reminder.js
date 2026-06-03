@@ -1,9 +1,54 @@
-const { fetchAppointments } = require("./uschedule");
+const { fetchAppointments, fetchAvailability } = require("./uschedule");
 const { Firestore } = require("@google-cloud/firestore");
+const {
+  uscheduleLocationId,
+  uscheduleServiceId,
+  uscheduleServiceLengthMin,
+} = require("./config");
 
 const db = new Firestore();
 
 const ARIZONA_TIME_ZONE = "America/Phoenix";
+
+/**
+ * Whether an appointment's slot shows as FREE/bookable, which means it was
+ * cancelled (getapiappointments cannot tell us this — see poller.js). Uses a
+ * per-run cache keyed by "unitId|YYYY-MM-DD" to avoid repeat calls. On any error
+ * or missing data, returns false (assume active) so we never suppress a real
+ * reminder just because the availability lookup failed.
+ */
+async function isSlotCancelled(authKey, appt, cache) {
+  const unitId = appt.ResourceUnitID;
+  const rawStartTime = appt.StartTime;
+  if (unitId == null || typeof rawStartTime !== "string") return false;
+
+  const day = rawStartTime.slice(0, 10);
+  const hour = rawStartTime.slice(11, 16);
+  const key = `${unitId}|${day}`;
+
+  let free = cache.get(key);
+  if (!free) {
+    try {
+      const slots = await fetchAvailability(authKey, {
+        locationId: uscheduleLocationId,
+        resourceUnitId: unitId,
+        serviceId: uscheduleServiceId,
+        startDateISO: `${day}T00:00:00`,
+        serviceLength: uscheduleServiceLengthMin,
+      });
+      free = new Set(
+        slots
+          .filter((s) => s && typeof s.StartTime === "string" && s.StartTime.slice(0, 10) === day)
+          .map((s) => s.StartTime.slice(11, 16))
+      );
+      cache.set(key, free);
+    } catch (err) {
+      console.error("[reminder] availability check failed", { key, error: err.message || String(err) });
+      return false;
+    }
+  }
+  return free.has(hour);
+}
 
 // ---- Helpers ----
 
@@ -123,6 +168,9 @@ async function runReminderOnce(authKey) {
     return;
   }
 
+  // Per-run cache of free slots so cancelled appointments don't trigger reminders.
+  const availabilityCache = new Map();
+
   for (const appt of appointments) {
     try {
       const appointmentId = appt.AppointmentID;
@@ -185,6 +233,17 @@ async function runReminderOnce(authKey) {
       // Send notification when appointment starts in around 1 hour.
       // Window is 55 to 65 minutes to tolerate scheduler delay.
       if (minutesUntilStart < 55 || minutesUntilStart > 65) {
+        continue;
+      }
+
+      // Skip cancelled appointments — getapiappointments still returns them, so
+      // confirm via availability that the slot is actually still booked.
+      if (await isSlotCancelled(authKey, appt, availabilityCache)) {
+        console.log("[reminder] Skipping appointment because its slot is free (cancelled)", {
+          appointmentId,
+          customerId,
+          rawStartTime,
+        });
         continue;
       }
 
