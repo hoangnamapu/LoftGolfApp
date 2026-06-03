@@ -140,20 +140,33 @@ app.listen(port, () => {
 
   const { startPoller } = require("./poller");
 
-  // Single shared auth token — prevents duplicate impersonateuser calls
-  // from the poller and reminder firing simultaneously on startup.
+  // Single shared auth token with promise lock — ensures only one
+  // impersonateuser call is in flight at a time even when poller and
+  // reminder both call getAuthKey() simultaneously on startup.
   let sharedAuthKey = null;
+  let authKeyPromise = null;
 
   async function getAuthKey() {
-    if (!sharedAuthKey) {
-      sharedAuthKey = await impersonate(uscheduleImpersonateEmail);
-      console.log("[auth] authenticated with uSchedule");
+    if (sharedAuthKey) return sharedAuthKey;
+    if (!authKeyPromise) {
+      authKeyPromise = impersonate(uscheduleImpersonateEmail)
+        .then(key => {
+          sharedAuthKey = key;
+          authKeyPromise = null;
+          console.log("[auth] authenticated with uSchedule");
+          return key;
+        })
+        .catch(err => {
+          authKeyPromise = null;
+          throw err;
+        });
     }
-    return sharedAuthKey;
+    return authKeyPromise;
   }
 
   function clearAuthKey() {
     sharedAuthKey = null;
+    authKeyPromise = null;
   }
 
   startPoller(syncBooking, getAuthKey, clearAuthKey);
