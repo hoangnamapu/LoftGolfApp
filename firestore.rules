@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // The iOS app (LoftGolfApp, Firebase project loftgolfapp-9605e) registers
+    // push notification tokens directly from the client. The app does NOT use
+    // Firebase Auth yet, so these writes are unauthenticated — we allow writes
+    // to just these token collections and deny client reads. The calendar-sync
+    // service reads tokens via the Admin SDK, which bypasses these rules.
+    //
+    // This replaces the expiring Test Mode rules (which left the whole database
+    // open). It is intentionally a stopgap: lock this down with App Check or
+    // move token writes server-side, then change the writes below to `if false`.
+    match /fcm_tokens/{docId} {
+      allow write: if true;
+      allow read: if false;
+    }
+    match /debug_fcm_tokens/{docId} {
+      allow write: if true;
+      allow read: if false;
+    }
+
+    // Everything else is denied to both reads and writes.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
