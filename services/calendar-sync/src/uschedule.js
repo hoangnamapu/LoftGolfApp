@@ -51,4 +51,4 @@ async function fetchAppointments(authKey, startDate, endDate) {
   return Array.isArray(data) ? data : [];
 }
 
-module.exports = { impersonate, fetchAppointments };
+module.exports = { login, fetchAppointments };
