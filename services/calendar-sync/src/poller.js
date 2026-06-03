@@ -1,6 +1,6 @@
-const { impersonate, fetchAppointments } = require("./uschedule");
+const { fetchAppointments } = require("./uschedule");
 const { getSnapshot, setSnapshot, deleteSnapshot, listSnapshotIds } = require("./store");
-const { uscheduleImpersonateEmail, pollIntervalMs } = require("./config");
+const { pollIntervalMs } = require("./config");
 
 // Active StatusIDs from uSchedule
 const STATUS_ACTIVE = 1;
@@ -111,20 +111,15 @@ async function runOnce(authKey, syncBooking) {
   console.log(`[poller] tick complete — checked ${bayAppointments.length} appointments`);
 }
 
-function startPoller(syncBooking) {
-  let authKey = null;
-
+function startPoller(syncBooking, getAuthKey, clearAuthKey) {
   async function tick() {
     try {
-      if (!authKey) {
-        authKey = await impersonate(uscheduleImpersonateEmail);
-        console.log("[poller] authenticated with uSchedule");
-      }
+      const authKey = await getAuthKey();
       await runOnce(authKey, syncBooking);
     } catch (err) {
       if (err.status === 401) {
         console.warn("[poller] 401 error, re-authenticating next tick:", err.message);
-        authKey = null;
+        clearAuthKey();
       } else {
         console.error("[poller] tick error:", err.message || err);
       }

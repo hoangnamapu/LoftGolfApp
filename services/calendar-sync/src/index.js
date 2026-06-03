@@ -139,19 +139,23 @@ app.listen(port, () => {
   console.log(`calendar-sync listening on ${port}`);
 
   const { startPoller } = require("./poller");
-  startPoller(syncBooking);
 
-  /**
-   * This old reminder loop can stay for local testing / backup.
-   * But for Cloud Run production, Cloud Scheduler calling /tasks/reminders
-   * is more reliable than relying only on this background setTimeout loop.
-   */
-  let reminderAuthKey = null;
+  // Single shared auth token — prevents duplicate impersonateuser calls
+  // from the poller and reminder firing simultaneously on startup.
+  let sharedAuthKey = null;
 
-  startReminder(async () => {
-    if (!reminderAuthKey) {
-      reminderAuthKey = await impersonate(uscheduleImpersonateEmail);
+  async function getAuthKey() {
+    if (!sharedAuthKey) {
+      sharedAuthKey = await impersonate(uscheduleImpersonateEmail);
+      console.log("[auth] authenticated with uSchedule");
     }
-    return reminderAuthKey;
-  });
+    return sharedAuthKey;
+  }
+
+  function clearAuthKey() {
+    sharedAuthKey = null;
+  }
+
+  startPoller(syncBooking, getAuthKey, clearAuthKey);
+  startReminder(getAuthKey);
 });
