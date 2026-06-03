@@ -5,12 +5,13 @@ const {
   bay1CalendarId,
   bay2CalendarId,
   timeZone,
-  uscheduleImpersonateEmail,
+  uscheduleUsername,
+  uschedulePassword,
 } = require("./config");
 
 const { getMapping, setMapping, deleteMapping } = require("./store");
 const { toEvent, createEvent, patchEvent, deleteEvent } = require("./gcal");
-const { impersonate } = require("./uschedule");
+const { login } = require("./uschedule");
 const { startReminder, runReminderOnce } = require("./reminder");
 
 const app = express();
@@ -117,7 +118,7 @@ app.post("/sync/uschedule", requireKey, async (req, res) => {
  */
 app.post("/tasks/reminders", requireKey, async (req, res) => {
   try {
-    const authKey = await impersonate(uscheduleImpersonateEmail);
+    const authKey = await login(uscheduleUsername, uschedulePassword);
     await runReminderOnce(authKey);
 
     return res.json({
@@ -149,7 +150,7 @@ app.listen(port, () => {
   async function getAuthKey() {
     if (sharedAuthKey) return sharedAuthKey;
     if (!authKeyPromise) {
-      authKeyPromise = impersonate(uscheduleImpersonateEmail)
+      authKeyPromise = login(uscheduleUsername, uschedulePassword)
         .then(key => {
           sharedAuthKey = key;
           authKeyPromise = null;

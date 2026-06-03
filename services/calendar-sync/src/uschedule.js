@@ -28,13 +28,14 @@ async function _post(path, body, authKey) {
 }
 
 /**
- * Gets an auth token by impersonating a user via the app key — no password needed.
- * @param {string} email  e.g. "booking@loftgolfstudios.com"
+ * Gets an auth token by logging in with username and password.
+ * @param {string} username
+ * @param {string} password
  * @returns {Promise<string>} AuthKey
  */
-async function impersonate(email) {
-  const data = await _post("impersonateuser", { SearchField: "username", Value: email });
-  if (!data?.AuthKey) throw new Error("uSchedule impersonate response missing AuthKey");
+async function login(username, password) {
+  const data = await _post("validateuser", { UserName: username, Password: password });
+  if (!data?.AuthKey) throw new Error("uSchedule validateuser response missing AuthKey");
   return data.AuthKey;
 }
 

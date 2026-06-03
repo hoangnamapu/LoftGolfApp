@@ -11,7 +11,8 @@ module.exports = {
   bay2CalendarId: process.env.BAY2_CALENDAR_ID || null,
   timeZone: process.env.TIME_ZONE || "America/Phoenix",
   firestoreCollection: process.env.FIRESTORE_COLLECTION || "bookingEventMap",
-  uscheduleImpersonateEmail: must("USCHEDULE_IMPERSONATE_EMAIL"),
+  uscheduleUsername: must("USCHEDULE_IMPERSONATE_EMAIL"),
+  uschedulePassword: must("USCHEDULE_PASSWORD"),
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS || 60_000),
   snapshotCollection: process.env.SNAPSHOT_COLLECTION || "appointmentSnapshots",
 };
