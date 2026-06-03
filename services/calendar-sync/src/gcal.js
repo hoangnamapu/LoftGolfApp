@@ -49,7 +49,18 @@ async function patchEvent(calendarId, eventId, eventPatch) {
 
 async function deleteEvent(calendarId, eventId) {
   const cal = await getCalendarClient();
-  await cal.events.delete({ calendarId, eventId });
+  try {
+    await cal.events.delete({ calendarId, eventId });
+  } catch (err) {
+    const status = err?.response?.status || err?.code;
+    // 404 Not Found / 410 Gone — the event is already gone on Google's side.
+    // Treat as success so callers can finish cleanup (mappings/snapshots)
+    // instead of getting stuck retrying the same delete every tick.
+    if (status === 404 || status === 410) {
+      return;
+    }
+    throw err;
+  }
 }
 
 module.exports = { toEvent, createEvent, patchEvent, deleteEvent };
