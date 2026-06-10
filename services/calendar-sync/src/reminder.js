@@ -1,5 +1,7 @@
 const { fetchAppointments, fetchAvailability } = require("./uschedule");
 const { Firestore } = require("@google-cloud/firestore");
+const { getSnapshot } = require("./store");
+const { ARIZONA_TIME_ZONE, parseArizonaTime } = require("./time");
 const {
   uscheduleLocationId,
   uscheduleServiceId,
@@ -7,8 +9,6 @@ const {
 } = require("./config");
 
 const db = new Firestore();
-
-const ARIZONA_TIME_ZONE = "America/Phoenix";
 
 /**
  * Whether an appointment's slot shows as FREE/bookable, which means it was
@@ -63,34 +63,6 @@ function formatArizonaDate(date) {
   const get = (type) => parts.find((p) => p.type === type)?.value;
 
   return `${get("month")}/${get("day")}/${get("year")}`;
-}
-
-/**
- * Parse a uSchedule time string as Arizona time.
- *
- * uSchedule may return times without timezone info:
- * Example: "2026-05-09T13:30:00"
- *
- * Cloud Run usually runs in UTC. If Node parses that string directly,
- * it may treat it as server-local time instead of Arizona time.
- *
- * Arizona does not observe daylight saving time, so UTC-7 is stable.
- */
-function parseArizonaTime(str) {
-  if (!str) return null;
-
-  let value = String(str).trim();
-
-  // If the string already contains timezone info, do not modify it.
-  const hasTimezone =
-    value.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(value);
-
-  if (!hasTimezone) {
-    value = value + "-07:00";
-  }
-
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 async function sendFCMNotification(fcmToken, title, body) {
@@ -233,6 +205,19 @@ async function runReminderOnce(authKey) {
       // Send notification when appointment starts in around 1 hour.
       // Window is 55 to 65 minutes to tolerate scheduler delay.
       if (minutesUntilStart < 55 || minutesUntilStart > 65) {
+        continue;
+      }
+
+      // Skip records the poller has tombstoned (cancelled, superseded by a
+      // newer booking on the same slot, or an abandoned checkout hold). The
+      // slot check below can't catch dead records whose slot is occupied by
+      // the superseding booking — the tombstone can.
+      const snapshot = await getSnapshot(appointmentId);
+      if (snapshot?.syncState && snapshot.syncState !== "active") {
+        console.log("[reminder] Skipping appointment because it is tombstoned", {
+          appointmentId,
+          syncState: snapshot.syncState,
+        });
         continue;
       }
 

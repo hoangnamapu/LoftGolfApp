@@ -17,6 +17,13 @@ module.exports = {
   uscheduleLocationId: Number(process.env.USCHEDULE_LOCATION_ID || 11274),
   uscheduleServiceId: Number(process.env.USCHEDULE_SERVICE_ID || 35371),
   uscheduleServiceLengthMin: Number(process.env.USCHEDULE_SERVICE_LENGTH || 60),
+  // uSchedule blocks a slot for ~15 min while a customer completes checkout,
+  // creating an appointment record immediately even if the transaction is
+  // later abandoned. Don't sync records younger than this grace period.
+  holdGraceMin: Number(process.env.HOLD_GRACE_MIN || 20),
+  // ...except bookings starting within this window sync immediately so door
+  // automations still fire for real walk-ins.
+  urgentWindowMin: Number(process.env.URGENT_WINDOW_MIN || 30),
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS || 60_000),
   snapshotCollection: process.env.SNAPSHOT_COLLECTION || "appointmentSnapshots",
 };
