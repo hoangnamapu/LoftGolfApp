@@ -5,6 +5,7 @@ const { ARIZONA_TIME_ZONE, parseArizonaTime } = require("./time");
 const {
   uscheduleLocationId,
   uscheduleServiceId,
+  uscheduleUnitServiceIds,
   uscheduleServiceLengthMin,
 } = require("./config");
 
@@ -32,7 +33,8 @@ async function isSlotCancelled(authKey, appt, cache) {
       const slots = await fetchAvailability(authKey, {
         locationId: uscheduleLocationId,
         resourceUnitId: unitId,
-        serviceId: uscheduleServiceId,
+        // Must be a service the unit actually offers (see config.js).
+        serviceId: uscheduleUnitServiceIds[unitId] || uscheduleServiceId,
         startDateISO: `${day}T00:00:00`,
         serviceLength: uscheduleServiceLengthMin,
       });

@@ -5,9 +5,11 @@ const {
   pollIntervalMs,
   uscheduleLocationId,
   uscheduleServiceId,
+  uscheduleUnitServiceIds,
   uscheduleServiceLengthMin,
   holdGraceMin,
   urgentWindowMin,
+  urgentMinAgeMin,
 } = require("./config");
 
 // StatusIDs from uSchedule (kept for booking payload shape).
@@ -19,7 +21,8 @@ const STATUS_CANCELED = [9, 10]; // canceled, rescheduled
 // on production, cancelled records are returned identically to active ones,
 // and dead records stay in the response forever. uSchedule also creates the
 // appointment record the moment a customer STARTS checkout (blocking the slot
-// for ~15 min), so records exist for transactions that were never completed.
+// until the 5-min cart timeout), so records exist for transactions that were
+// never completed.
 //
 // We therefore derive per-record life state from three signals:
 //   1. getavailability — a FREE slot means no active booking is there
@@ -65,7 +68,9 @@ async function buildFreeSlotMap(authKey, appts) {
       const slots = await fetchAvailability(authKey, {
         locationId: uscheduleLocationId,
         resourceUnitId: unitId,
-        serviceId: uscheduleServiceId,
+        // Must be a service the unit actually offers, or the response is
+        // empty and the bay is blind to cancellations (see config.js).
+        serviceId: uscheduleUnitServiceIds[unitId] || uscheduleServiceId,
         startDateISO: `${day}T00:00:00`,
         serviceLength: uscheduleServiceLengthMin,
       });
@@ -264,20 +269,21 @@ async function runOnce(authKey, syncBooking) {
           continue;
         }
 
-        // Imminent bookings sync immediately so door automations fire for
-        // real walk-ins, accepting rare last-minute phantoms.
+        // Imminent bookings take a fast path so door automations fire for
+        // real walk-ins, but even they wait out uSchedule's 5-min cart
+        // timeout — an abandoned checkout frees its slot by then and is
+        // tombstoned above without an event ever being created. Cancellation
+        // is undetectable once a slot enters availability's same-day
+        // lead-time blind window, so syncing before the cart can expire
+        // creates phantoms we can never clean up.
         const urgent =
           startTime && startTime.getTime() - now.getTime() <= urgentWindowMin * 60_000;
+        const requiredAgeMs = (urgent ? urgentMinAgeMin : holdGraceMin) * 60_000;
 
-        // Otherwise wait out uSchedule's checkout hold: abandoned
-        // transactions free their slot within ~15 min and get tombstoned
-        // above without an event ever being created.
-        if (
-          !urgent &&
-          createdTime &&
-          now.getTime() - createdTime.getTime() < holdGraceMin * 60_000
-        ) {
-          console.log(`[poller] deferring appointment ${id} — within checkout-hold grace period`);
+        if (createdTime && now.getTime() - createdTime.getTime() < requiredAgeMs) {
+          console.log(
+            `[poller] deferring appointment ${id} — within ${urgent ? "cart-timeout wait (urgent)" : "checkout-hold grace period"}`
+          );
           continue;
         }
 
