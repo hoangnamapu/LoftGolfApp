@@ -40,8 +40,10 @@ module.exports = {
   // period so abandoned carts free their slot and get tombstoned first.
   holdGraceMin: Number(process.env.HOLD_GRACE_MIN || 10),
   // ...except bookings starting within this window go on the fast path so
-  // door automations still fire for real walk-ins.
-  urgentWindowMin: Number(process.env.URGENT_WINDOW_MIN || 30),
+  // door automations still fire for real walk-ins. 45 (not 30) so a booking
+  // made ~40 min out clears its 6-min wait before Pete's "Last Call" check
+  // fires at the 30-minute mark (June 11 request).
+  urgentWindowMin: Number(process.env.URGENT_WINDOW_MIN || 45),
   // Even urgent bookings wait until the record outlives the 5-min cart
   // timeout, so an abandoned checkout never syncs ("sync at minute 6").
   urgentMinAgeMin: Number(process.env.URGENT_MIN_AGE_MIN || 6),
